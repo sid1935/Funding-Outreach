@@ -36,6 +36,7 @@ async function processStartup(s, thesis) {
     const fit = await scoreFit(s, thesis, siteText);
     // Kept in its own update so a missing column can never block the status change.
     if (!DRY_RUN) await supabase.from("startups").update({ fit_score: fit.score, fit_rationale: fit.rationale }).eq("id", id);
+    if (!DRY_RUN) await supabase.from("startups").update({ fit_breakdown: fit.breakdown }).eq("id", id);
     if (!fit.fits) {
       if (DRY_RUN) await supabase.from("startups").delete().eq("id", id); // dry run leaves no trace
       else await supabase.from("startups").update({ status: "rejected" }).eq("id", id);

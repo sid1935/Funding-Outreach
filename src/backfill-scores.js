@@ -13,6 +13,7 @@ for (const r of rows) {
   const { siteText } = await research(startup);
   const fit = await scoreFit(startup, thesis, siteText);
   await supabase.from("startups").update({ fit_score: fit.score, fit_rationale: fit.rationale }).eq("id", r.id);
+  await supabase.from("startups").update({ fit_breakdown: fit.breakdown }).eq("id", r.id);
   console.log(`${r.name}: ${fit.score}`);
 }
 console.log(`Backfilled ${rows.length} startups`);

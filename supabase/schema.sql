@@ -60,6 +60,9 @@ create table if not exists startups (
 alter table startups add column if not exists fit_score int;
 alter table startups add column if not exists fit_rationale text;
 
+alter table startups add column if not exists fit_breakdown jsonb;   -- per-criterion scores
+alter table thesis   add column if not exists rubric jsonb;            -- editable scoring rubric
+
 -- 3. Drafts. One per startup, enforced.
 create table if not exists outreach (
   id             bigint generated always as identity primary key,
