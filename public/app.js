@@ -14,7 +14,7 @@ const NAV = [
 document.body.insertAdjacentHTML("afterbegin", `<header class="nav"><div class="nav-in">
   <a class="brand" href="/"><span class="logo"></span>Funding Outreach</a>
   <nav>${NAV.map(([h, l, k]) => `<a href="${h}" class="${k === page ? "on" : ""}">${l}</a>`).join("")}</nav></div></header>`);
-document.body.insertAdjacentHTML("beforeend", `<footer><span>Drafts only: nothing is sent automatically.</span><a href="${REPO}" target="_blank" rel="noopener">Source on GitHub</a><span>Runs daily at 06:30 IST</span></footer>`);
+document.body.insertAdjacentHTML("beforeend", `<footer><span>Drafts only: nothing is sent automatically.</span><a href="${REPO}" target="_blank" rel="noopener">Source on GitHub</a><span>Scans for new funding news every hour</span></footer>`);
 
 const app = $("#app");
 const api = (q) => fetch("/api/status?" + q).then((r) => (r.ok ? r.json() : Promise.reject()));
@@ -25,13 +25,13 @@ const head = (h, lead) => (app.innerHTML = `<h1>${h}</h1><p class="lead">${lead}
 
 const statusPill = (s) => ({ drafted: '<span class="pill ok">Draft ready</span>', rejected: '<span class="pill bad">Not a fit</span>', error: '<span class="pill">Retrying</span>', processing: '<span class="pill acc">Processing</span>' }[s] || "");
 
-function startupItem(s, { showDraft = true } = {}) {
+function startupItem(s, { showDraft = true, rank = null } = {}) {
   const o = Array.isArray(s.outreach) ? s.outreach[0] : s.outreach;
   const score = s.fit_score ?? o?.fit_score;
   const why = s.status === "rejected" && s.fit_rationale ? `<p class="desc"><b>Why not a fit:</b> ${esc(s.fit_rationale)}</p>` : "";
   const link = s.source_url ? `<a href="${esc(s.source_url)}" target="_blank" rel="noopener">Read the announcement ↗</a>` : "";
   return `<div class="item"><div class="item-h"><div>
-    <div class="name">${esc(s.name)} ${statusPill(s.status)}</div>
+    <div class="name">${rank ? `<span class="rank">#${rank}</span>` : ""}${esc(s.name)} ${statusPill(s.status)}</div>
     <div class="meta">${roundName(s.round_type)} · ${money(s.amount_usd)}${s.domain ? " · " + esc(s.domain) : ""} · found ${when(s.created_at)}</div></div>
     ${score != null ? `<div class="score">${score}<span class="bar"><i style="width:${Math.min(100, score)}%"></i></span></div>` : ""}</div>
     <p class="desc">${esc(s.description)}</p>${why}
@@ -68,13 +68,13 @@ const views = {
 
   async startups() {
     const st = new URLSearchParams(location.search).get("status") || "";
-    head("All startups", "Every startup the pipeline has evaluated, newest first.");
+    head("All startups", "Every startup the pipeline has evaluated, ranked by fit score. A startup is scored once, when it first appears; its rank never gets recalculated.");
     const chip = (v, l) => `<a href="/startups${v ? "?status=" + v : ""}" class="${st === v ? "on" : ""}">${l}</a>`;
     app.insertAdjacentHTML("beforeend", `<div class="chips">${chip("", "All")}${chip("drafted", "Draft ready")}${chip("rejected", "Rejected")}</div>`);
     loading();
     const d = await api("view=startups" + (st ? "&status=" + st : ""));
     done();
-    app.insertAdjacentHTML("beforeend", `<div class="card">${d.startups.length ? d.startups.map((s) => startupItem(s)).join("") : '<div class="empty">Nothing here yet.</div>'}</div>`);
+    app.insertAdjacentHTML("beforeend", `<div class="card">${d.startups.length ? d.startups.map((s, i) => startupItem(s, { rank: i + 1 })).join("") : '<div class="empty">Nothing here yet.</div>'}</div>`);
   },
 
   async drafts() {
@@ -82,15 +82,15 @@ const views = {
     loading();
     const d = await api("view=startups&status=drafted");
     done();
-    app.insertAdjacentHTML("beforeend", `<div class="card">${d.startups.length ? d.startups.map((s) => startupItem(s)).join("") : '<div class="empty">No drafts yet.</div>'}</div>`);
+    app.insertAdjacentHTML("beforeend", `<div class="card">${d.startups.length ? d.startups.map((s, i) => startupItem(s, { rank: i + 1 })).join("") : '<div class="empty">No drafts yet.</div>'}</div>`);
   },
 
   async rejected() {
-    head("Rejected", "Evaluated and judged not a fit for the thesis. Rohit never sees these in his inbox.");
+    head("Rejected", "Evaluated and judged not a fit for the thesis, ranked by score. Rohit never sees these in his inbox.");
     loading();
     const d = await api("view=startups&status=rejected");
     done();
-    app.insertAdjacentHTML("beforeend", `<div class="card">${d.startups.length ? d.startups.map((s) => startupItem(s, { showDraft: false })).join("") : '<div class="empty">Nothing rejected yet.</div>'}</div>`);
+    app.insertAdjacentHTML("beforeend", `<div class="card">${d.startups.length ? d.startups.map((s, i) => startupItem(s, { showDraft: false, rank: i + 1 })).join("") : '<div class="empty">Nothing rejected yet.</div>'}</div>`);
   },
 
   async thesis() {
@@ -103,7 +103,7 @@ const views = {
       <div class="row"><b>Stages</b><span>${tags(t.stages)}</span></div>
       <div class="row"><b>Sectors</b><span>${tags(t.sectors)}</span></div>
       <div class="row"><b>Geographies</b><span>${tags(t.geographies)}</span></div>
-      <div class="row"><b>Excluded</b><span>${tags(t.exclusions)}</span></div>
+      <div class="row"><b>Excluded</b><span>${t.exclusions?.length ? tags(t.exclusions) : '<span class="meta">None</span>'}</span></div>
       <div class="row"><b>Min. score</b><span class="pill acc">${t.min_score} / 100</span></div></div>
       <div class="card"><h2>What the email offers</h2><p style="margin:0">${esc(t.pitch)}</p></div>`);
   },

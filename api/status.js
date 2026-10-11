@@ -20,7 +20,7 @@ export default async function handler(req, res) {
       out = { thesis: thesis.data, lastRun: runs.data?.[0] ?? null, counts, repo: REPO };
     } else if (view === "startups") {
       const status = ["drafted", "rejected", "error", "processing"].includes(req.query.status) ? req.query.status : null;
-      let q = supabase.from("startups").select(STARTUP_COLS).order("id", { ascending: false }).limit(200);
+      let q = supabase.from("startups").select(STARTUP_COLS).order("fit_score", { ascending: false, nullsFirst: false }).order("id", { ascending: false }).limit(200);
       if (status) q = q.eq("status", status);
       out = { startups: (await q).data ?? [] };
     } else if (view === "thesis") {

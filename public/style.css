@@ -76,3 +76,4 @@ footer { max-width:1040px; margin:0 auto; padding:0 20px 40px; color:var(--muted
 .skeleton { height:14px; border-radius:6px; background:var(--surface2); margin:10px 0; animation:p 1.2s infinite alternate; }
 @keyframes p { to { opacity:.4; } }
 @media (max-width:600px) { .nav-in { gap:10px; } nav { margin-left:0; } main { padding-top:28px; } }
+.rank { display:inline-block; min-width:34px; margin-right:6px; color:var(--muted); font-weight:600; }

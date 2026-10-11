@@ -1,7 +1,7 @@
 name: funding-outreach
 on:
   schedule:
-    - cron: "0 */3 * * *"   # every 3 hours; an early-morning run guarantees fresh drafts for Rohit
+    - cron: "0 * * * *"   # every hour
   workflow_dispatch: {}
 concurrency: { group: outreach, cancel-in-progress: false }
 jobs:
