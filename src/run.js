@@ -62,7 +62,11 @@ async function processStartup(s, thesis) {
   }
 }
 
-async function main() {
+// deadlineMs: stop starting new work after this many ms (serverless time limits). Unprocessed
+// articles are not marked seen, so the next run picks them up.
+export async function runPipeline({ deadlineMs = Infinity, concurrency = 4 } = {}) {
+  const startedAt = Date.now();
+  for (const k of Object.keys(stats)) stats[k] = 0;
   const { data: run } = await supabase.from("runs").insert({}).select("id").single();
   let fatal = null;
   try {
@@ -77,21 +81,32 @@ async function main() {
     stats.new_articles = fresh.length;
     console.log(`${articles.length} recent funding-ish articles, ${fresh.length} not yet seen`);
 
-    for (const a of fresh) {
-      let s = null;
-      try { s = await extractStartup(a); } catch (e) { stats.errors++; console.error(`  extract failed: ${e.message}`); continue; }
-      if (!DRY_RUN) await supabase.from("seen_articles").upsert({ url: a.url });
-      if (!s) continue;
-      stats.funding++;
-      await processStartup(s, thesis);
-    }
+    let next = 0;
+    const worker = async () => {
+      while (next < fresh.length && Date.now() - startedAt < deadlineMs) {
+        const a = fresh[next++];
+        let s = null;
+        try { s = await extractStartup(a); } catch (e) { stats.errors++; console.error(`  extract failed: ${e.message}`); continue; }
+        if (!DRY_RUN) await supabase.from("seen_articles").upsert({ url: a.url });
+        if (!s) continue;
+        stats.funding++;
+        await processStartup(s, thesis);
+      }
+    };
+    await Promise.all(Array.from({ length: concurrency }, worker));
+    if (next < fresh.length) console.log(`Time budget hit: ${fresh.length - next} articles left for the next run`);
   } catch (e) {
     fatal = e;
     console.error("Run failed:", e.message);
   }
   await supabase.from("runs").update({ finished_at: new Date().toISOString(), stats, error: fatal?.message ?? null }).eq("id", run.id);
   console.log("Done:", stats);
-  if (fatal) process.exit(1);
+  return { stats: { ...stats }, error: fatal?.message ?? null };
 }
 
-main();
+// Run directly (npm start / GitHub Actions); skipped when imported by the Vercel function.
+import { pathToFileURL } from "url";
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const { error } = await runPipeline();
+  process.exit(error ? 1 : 0); // open keep-alive sockets would otherwise hold the process open
+}

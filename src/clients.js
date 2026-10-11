@@ -22,7 +22,7 @@ export async function geminiJson(prompt, schema, { model = MODEL, tries = 4, tem
       const res = await ai.models.generateContent({
         model,
         contents: prompt,
-        config: { responseMimeType: "application/json", responseSchema: schema, temperature },
+        config: { responseMimeType: "application/json", responseSchema: schema, temperature, thinkingConfig: { thinkingBudget: 0 } },
       });
       return JSON.parse(res.text);
     } catch (e) {
