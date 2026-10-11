@@ -1,28 +1,21 @@
-import { timingSafeEqual } from "crypto";
 import { supabase } from "../src/clients.js";
 import { validateThesis } from "../src/thesis-config.js";
 
-// Password-protected write endpoint for the thesis (the only public write path).
-// The password is the ADMIN_PASSWORD environment variable; it is never stored in the database or the page.
-const same = (a, b) => {
-  const x = Buffer.from(String(a)), y = Buffer.from(String(b));
-  return x.length === y.length && timingSafeEqual(x, y);
-};
+// Open write endpoint for the thesis (by the owner's choice there is no password).
+// Input is strictly validated and length-limited; the page escapes everything it renders.
+const lastEdit = { t: 0 };
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
-  const admin = process.env.ADMIN_PASSWORD;
-  if (!admin) return res.status(503).json({ error: "Editing is not enabled: ADMIN_PASSWORD is not set." });
 
-  const { password, thesis } = req.body || {};
-  if (!password || !same(password, admin)) {
-    await new Promise((r) => setTimeout(r, 1000)); // slow down guessing
-    return res.status(401).json({ error: "Wrong password." });
-  }
+  // Light brake against scripted abuse: at most one save every 3 seconds per server instance.
+  if (Date.now() - lastEdit.t < 3000) return res.status(429).json({ error: "Please wait a few seconds and try again." });
+  lastEdit.t = Date.now();
+
   let clean;
   try {
-    clean = validateThesis(thesis || {});
+    clean = validateThesis(req.body?.thesis || {});
   } catch (e) {
     return res.status(400).json({ error: e.message });
   }

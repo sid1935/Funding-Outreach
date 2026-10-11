@@ -137,7 +137,6 @@ const views = {
         <fieldset><legend>Scoring rubric <span id="wsum" class="pill"></span></legend><div id="rows"></div><button type="button" class="btn ghost" id="addrow">+ Add criterion</button></fieldset>
         <div class="two"><label>Sender name<input name="sender_name" value="${esc(t.sender_name)}" required></label><label>Organisation<input name="sender_org" value="${esc(t.sender_org)}" required></label></div>
         <label>What the email offers <small>One or two true sentences. The email repeats this.</small><textarea name="pitch" rows="3">${esc(t.pitch)}</textarea></label>
-        <label>Admin password<input name="password" type="password" required></label>
         <div id="msg" class="meta"></div>
         <div class="item-h" style="margin-top:12px"><button class="btn" type="submit">Save changes</button><button class="btn ghost" type="button" id="cancel">Cancel</button></div></form>`);
       const rows = $("#rows");
@@ -158,7 +157,7 @@ const views = {
         e.preventDefault();
         const f = new FormData(e.target);
         const csv = (k) => String(f.get(k) || "").split(",").map((x) => x.trim()).filter(Boolean);
-        const body = { password: f.get("password"), thesis: {
+        const body = { thesis: {
           description: f.get("description"), stages: f.getAll("stage"), sectors: csv("sectors"), geographies: csv("geographies"),
           exclusions: csv("exclusions"), min_score: f.get("min_score"), sender_name: f.get("sender_name"), sender_org: f.get("sender_org"), pitch: f.get("pitch"),
           rubric: [...rows.children].map((r) => ({ name: r.querySelector("[name=n]").value, weight: Number(r.querySelector("[name=w]").value), description: r.querySelector("[name=d]").value })),
