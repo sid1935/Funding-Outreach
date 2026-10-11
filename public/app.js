@@ -27,12 +27,14 @@ const statusPill = (s) => ({ drafted: '<span class="pill ok">Draft ready</span>'
 
 function startupItem(s, { showDraft = true } = {}) {
   const o = Array.isArray(s.outreach) ? s.outreach[0] : s.outreach;
+  const score = s.fit_score ?? o?.fit_score;
+  const why = s.status === "rejected" && s.fit_rationale ? `<p class="desc"><b>Why not a fit:</b> ${esc(s.fit_rationale)}</p>` : "";
   const link = s.source_url ? `<a href="${esc(s.source_url)}" target="_blank" rel="noopener">Read the announcement ↗</a>` : "";
   return `<div class="item"><div class="item-h"><div>
     <div class="name">${esc(s.name)} ${statusPill(s.status)}</div>
     <div class="meta">${roundName(s.round_type)} · ${money(s.amount_usd)}${s.domain ? " · " + esc(s.domain) : ""} · found ${when(s.created_at)}</div></div>
-    ${o ? `<div class="score">${o.fit_score}<span class="bar"><i style="width:${Math.min(100, o.fit_score)}%"></i></span></div>` : ""}</div>
-    <p class="desc">${esc(s.description)}</p>
+    ${score != null ? `<div class="score">${score}<span class="bar"><i style="width:${Math.min(100, score)}%"></i></span></div>` : ""}</div>
+    <p class="desc">${esc(s.description)}</p>${why}
     ${showDraft && o ? `<details><summary>${esc(o.subject)}</summary><pre class="mail">${esc(o.body)}</pre><div class="meta">Why it fits: ${esc(o.rationale)} · scored on thesis v${o.thesis_version}</div></details>` : ""}
     <div class="meta" style="margin-top:8px">${link}</div></div>`;
 }

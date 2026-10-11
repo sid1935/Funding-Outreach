@@ -56,6 +56,10 @@ create table if not exists startups (
   created_at   timestamptz not null default now()
 );
 
+-- Score and reason for every evaluated startup, rejected ones included (shown on the dashboard).
+alter table startups add column if not exists fit_score int;
+alter table startups add column if not exists fit_rationale text;
+
 -- 3. Drafts. One per startup, enforced.
 create table if not exists outreach (
   id             bigint generated always as identity primary key,
