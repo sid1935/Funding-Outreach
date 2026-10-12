@@ -78,7 +78,7 @@ For every new startup that passes the score threshold, the pipeline looks for a 
 
 The winning address and how it was found are stored in `startups.contact_email` / `contact_source`, and the address goes into the Gmail draft's **To** field. Nothing is guessed from name patterns. Each run records how many contacts came from each step in its stats. Contacts are only kept for startups that pass the score.
 
-**Privacy.** Email addresses are never shown on the dashboard and never returned by the public API; they live only in Supabase and in each Gmail draft's To field. Founder names and roles are shown. Hunter data is licensed to you and must not be republished. Founders' LinkedIn links published on a company's own site may be stored with the founder record but are not displayed, and LinkedIn itself is never scraped.
+**Privacy.** Email addresses are never shown on the dashboard and never returned by the public API; they live only in Supabase and in each Gmail draft's To field. Founder names and roles are shown. Hunter data is licensed to you and must not be republished. LinkedIn is not used or stored.
 
 ## Approval workflow
 
@@ -218,7 +218,7 @@ Dark navy theme with 3D buttons. Pages:
 
 ## Components map
 
-A one-page map of the system in the same Trigger → Input → Context → Processing → AI → Output format: [docs/Components_Map_Funding_Outreach.pdf](docs/Components_Map_Funding_Outreach.pdf). (It predates the contact SOP, which sits inside the Processing column.)
+A one-page map of the system in the same Trigger → Input → Context → Processing → AI → Output format: [docs/Components_Map_Funding_Outreach.pdf](docs/Components_Map_Funding_Outreach.pdf).
 
 ## Project layout
 

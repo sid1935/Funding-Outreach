@@ -51,27 +51,6 @@ async function founderNames(startup, text) {
   }
 }
 
-// LinkedIn profile links that the company ITSELF publishes on its own pages (usually under each founder on the
-// team page). We only read the link; nothing is fetched from LinkedIn.
-function linkedinFor(founder, htmls) {
-  const parts = founder.name.trim().split(/\s+/).map((p) => p.toLowerCase().normalize("NFD").replace(/[^a-z]/g, "")).filter(Boolean);
-  const first = parts[0], last = parts.at(-1);
-  let best = null, bestScore = 0;
-  for (const html of htmls) {
-    for (const m of html.matchAll(/https?:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/in\/[^"'\s<>)?#\\]+/gi)) {
-      const url = m[0].replace(/\/+$/, "");
-      const slug = url.split("/in/")[1].toLowerCase().normalize("NFD").replace(/[^a-z]/g, "");
-      let score = 0;
-      if (last && slug.includes(last)) score += 2;
-      if (first && slug.includes(first)) score += 2;
-      const before = html.slice(Math.max(0, m.index - 600), m.index).toLowerCase();
-      if (founder.name.toLowerCase().split(/\s+/).every((p) => before.includes(p))) score += 1; // name sits just before the link
-      if (score > bestScore) { best = url; bestScore = score; }
-    }
-  }
-  return bestScore >= 2 ? best : null;
-}
-
 const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[^a-z]/g, "");
 
 // Does this address plausibly belong to one of the named founders? (e.g. priya@, priya.shah@, pshah@)
@@ -95,8 +74,6 @@ export async function findContacts(startup, domain, knownFounders = []) {
   let founders = knownFounders;
   const teamText = ok.filter((p) => /about|team|company/.test(p.url)).map((p) => strip(p.html)).join(" ");
   if (!founders.length) founders = await founderNames(startup, teamText || text);
-
-  founders = founders.map((f) => { const li = f.linkedin || linkedinFor(f, ok.map((p) => p.html)); return li ? { ...f, linkedin: li } : f; });
 
   // candidates with where they were seen
   const cands = new Map();
