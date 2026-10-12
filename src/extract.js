@@ -55,4 +55,11 @@ export function normalizeDomain(d) {
   return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host) ? host : null;
 }
 
-export const nameKey = (n) => n.toLowerCase().replace(/\b(inc|llc|ltd|pvt|private|limited|technologies|labs)\b/g, "").replace(/[^a-z0-9]/g, "");
+// A company shows up in the news as "Loops", "Loops AI" and "Loops Smart AI". Trailing filler words are dropped so
+// those collapse to one key and the startup is not processed (or drafted) twice.
+const FILLER = new Set(["ai", "ag", "smart", "capital", "labs", "lab", "inc", "llc", "ltd", "gmbh", "pvt", "private", "limited", "technologies", "technology", "tech", "group", "holdings", "hq", "io", "app"]);
+export const nameKey = (n) => {
+  const words = n.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
+  while (words.length > 1 && FILLER.has(words.at(-1))) words.pop();   // keep at least one word
+  return words.join("");
+};
