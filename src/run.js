@@ -4,9 +4,9 @@ import { extractStartup, nameKey } from "./extract.js";
 import { loadThesis, scoreFit } from "./score.js";
 import { research, draftEmail } from "./draft.js";
 import { createDraft } from "./gmail.js";
-import { hunterEnabled, hunterContact } from "./hunter.js";
+import { resolveContact } from "./waterfall.js";
 
-const stats = { articles: 0, new_articles: 0, funding: 0, duplicates: 0, rejected: 0, drafted: 0, errors: 0, hunter: 0 };
+const stats = { articles: 0, new_articles: 0, funding: 0, duplicates: 0, rejected: 0, drafted: 0, errors: 0, hunter: 0, contact_site: 0, contact_personal: 0, contact_hunter: 0, contact_fallback: 0, contact_none: 0 };
 
 // Claim a startup before doing any work. The unique constraints on name_key/domain make this
 // atomic: if a startup was already handled (or another run is on it), we skip.
@@ -19,9 +19,10 @@ async function claim(s) {
   if (!error) return data.id;
   if (error.code !== "23505") throw error;
   // Already known. Retry only if its earlier attempt errored out.
-  const { data: ex } = await supabase.from("startups").select("id,status")
+  const { data: ex } = await supabase.from("startups").select("id,status,created_at")
     .or(`name_key.eq.${row.name_key}${row.domain ? `,domain.eq.${row.domain}` : ""}`).limit(1).single();
-  if (ex?.status === "error") {
+  const stale = ex?.status === "processing" && Date.now() - Date.parse(ex.created_at) > 15 * 60 * 1000;
+  if (ex?.status === "error" || stale) {
     await supabase.from("startups").update({ status: "processing", error: null }).eq("id", ex.id);
     return ex.id;
   }
@@ -50,7 +51,7 @@ async function processStartup(s, thesis) {
   if (!id) { stats.duplicates++; console.log(`  skip (already seen): ${s.name}`); return; }
   try {
     const { siteText, email, domain, contact, founders } = await research(s);
-    if (!DRY_RUN) await supabase.from("startups").update({ founders, contact_email: contact?.email ?? null, contact_type: contact?.type ?? null, contact_source: contact?.source ?? null }).eq("id", id); // own update: tolerant of missing columns // research first so scoring sees the company's own site
+    if (!DRY_RUN) await supabase.from("startups").update({ founders }).eq("id", id); // contact lookup waits until the startup passes the score (below)
     if (domain && !s.domain) await supabase.from("startups").update({ domain }).eq("id", id); // remember it; a unique conflict is harmless
     const fit = await scoreFit(s, thesis, siteText);
     // Kept in its own update so a missing column can never block the status change.
@@ -63,17 +64,15 @@ async function processStartup(s, thesis) {
       console.log(`  no fit (${fit.score}): ${s.name}`);
       return;
     }
-    // Startups that fit but have no founder address yet: ask Hunter (capped per run to protect the monthly credits).
-    let contactNow = contact;
-    let foundersNow = founders;
-    if (hunterEnabled() && !DRY_RUN && (!contact || contact.type !== "founder") && stats.hunter < Number(process.env.HUNTER_MAX_PER_RUN || 5)) {
-      stats.hunter++;
-      try {
-        const h = await hunterContact({ domain: domain || s.domain, founders });
-        if (h) { contactNow = { email: h.email, type: h.type, source: h.source }; foundersNow = h.founders; }
-        await supabase.from("startups").update({ contact_email: contactNow?.email ?? null, contact_type: contactNow?.type ?? null, contact_source: h ? h.source : "hunter.io: nothing found", founders: foundersNow }).eq("id", id);
-      } catch (e) { console.warn(`  hunter lookup failed for ${s.name}: ${e.message}`); }
-    }
+    // Contact SOP for startups that pass the score (see waterfall.js): company contact page, founder's personal
+    // website, Hunter, then a general company inbox. Hunter is capped per run to protect the monthly credits.
+    const { contact: contactNow, founders: foundersNow } = await resolveContact({
+      startup: s, domain: domain || s.domain, founders, siteContact: contact,
+      canUseHunter: () => !DRY_RUN && stats.hunter++ < Number(process.env.HUNTER_MAX_PER_RUN || 5),
+      log: (m) => console.warn(`  ${s.name}: ${m}`),
+    });
+    stats[contactNow ? `contact_${contactNow.method}` : "contact_none"]++;
+    if (!DRY_RUN) await supabase.from("startups").update({ founders: foundersNow, contact_email: contactNow?.email ?? null, contact_type: contactNow?.type ?? null, contact_source: contactNow?.source ?? "no address found" }).eq("id", id);
     const mail = await draftEmail(s, thesis, fit, siteText, foundersNow);
     if (DRY_RUN) {
       console.log(`\n--- DRY RUN draft for ${s.name} (score ${fit.score}) ---\nTo: ${email ?? "(none)"}\nSubject: ${mail.subject}\n\n${mail.body}\n`);

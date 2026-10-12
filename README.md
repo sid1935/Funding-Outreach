@@ -77,6 +77,17 @@ Runs are triggered three ways; the database makes overlapping runs safe.
 
 `/api/run` replies `202` immediately and keeps working in the background (`waitUntil`), so timers with short HTTP timeouts do not cut a run off. A run stops starting new work after 4 minutes; unprocessed articles are not marked seen and are picked up next time.
 
+## Contact SOP
+
+For every new startup that passes the score threshold, the pipeline looks for a founder's contact address in this order and stops at the first hit (`src/waterfall.js`):
+
+1. **Company contact page.** The company's own contact, about and team pages, for an address that matches a named founder.
+2. **Founder's personal website.** Google search (Gemini grounding) for the founder's own site (never LinkedIn, X, GitHub, news or data-broker pages). An address is accepted only if the page names the founder *and* their startup.
+3. **Hunter.** Email Finder for each named founder, or Domain Search for senior contacts. Needs `HUNTER_API_KEY`; capped at `HUNTER_MAX_PER_RUN` (default 5) to protect the monthly credits; only addresses at 70%+ confidence that are not verified invalid.
+4. **Fallback.** A general company inbox (`hello@`, `contact@`, …) published on the company website.
+
+The winning address and how it was found are stored in `startups.contact_email` / `contact_source`, and the address goes into the Gmail draft's **To** field. Nothing is guessed from name patterns, and addresses are never shown on the public dashboard. Each run records how many contacts came from each step in its stats.
+
 ## Approval workflow
 
 Each draft on the **Drafts** page has **Approve & send** and **Reject** buttons.
