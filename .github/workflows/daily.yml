@@ -1,7 +1,7 @@
 name: funding-outreach
 on:
   schedule:
-    - cron: "0 * * * *"   # every hour
+    - cron: "17 * * * *"   # hourly, at :17 (GitHub drops many runs scheduled at :00 when it is busy)
   workflow_dispatch: {}
 concurrency: { group: outreach, cancel-in-progress: false }
 jobs:
