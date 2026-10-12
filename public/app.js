@@ -19,16 +19,19 @@ const NAV = [
   ["/rejected", "Rejected", "rejected"], ["/sources", "Sources", "sources"], ["/thesis", "Thesis", "thesis"], ["/runs", "Runs", "runs"],
 ];
 document.body.insertAdjacentHTML("afterbegin", `<header class="nav"><div class="nav-in">
-  <a class="brand" href="/"><span class="logo"></span>Funding Outreach</a>
-  <nav>${NAV.map(([h, l, k]) => `<a href="${h}" class="${k === page ? "on" : ""}">${l}</a>`).join("")}</nav></div></header>`);
-document.body.insertAdjacentHTML("beforeend", `<footer><span>Drafts only: nothing is sent automatically.</span><a href="${REPO}" target="_blank" rel="noopener">Source on GitHub</a><span>Scans for new funding news every hour</span></footer>`);
+  <a class="brand" href="/"><span class="logo"></span>Outreach</a>
+  <button class="menu-btn" id="menu-btn" aria-label="Menu" aria-expanded="false">Menu</button>
+  <nav id="nav">${NAV.map(([h, l, k]) => `<a href="${h}" class="${k === page ? "on" : ""}">${l}</a>`).join("")}</nav></div></header>`);
+$("#menu-btn").onclick = (e) => { const open = $("#nav").classList.toggle("open"); e.currentTarget.setAttribute("aria-expanded", open); e.currentTarget.textContent = open ? "Close" : "Menu"; };
+document.body.insertAdjacentHTML("beforeend", `<footer><div class="foot-mark">Outreach</div><div class="foot-links">${NAV.map(([h, l]) => `<a href="${h}">${l}</a>`).join("")}<a href="${REPO}" target="_blank" rel="noopener">Source on GitHub</a><span>Drafts only: nothing is sent until someone approves. New funding news is scanned every hour.</span></div></footer>`);
 
 const app = $("#app");
 const api = (q) => fetch("/api/status?" + q).then((r) => (r.ok ? r.json() : Promise.reject()));
 const loading = () => (app.insertAdjacentHTML("beforeend", '<div id="ld"><div class="skeleton"></div><div class="skeleton" style="width:70%"></div></div>'));
 const done = () => $("#ld")?.remove();
 const fail = () => { done(); app.insertAdjacentHTML("beforeend", '<div class="card empty">Data is unavailable right now. Try again in a minute.</div>'); };
-const head = (h, lead) => (app.innerHTML = `<h1>${h}</h1><p class="lead">${lead}</p>`);
+// Titles get an italic serif accent on the last word, e.g. "Draft <em>approvals</em>" (pass your own <em> to override).
+const head = (h, lead) => (app.innerHTML = `<h1>${h.includes("<") ? h : h.replace(/(\S+)$/, "<em>$1</em>")}</h1><p class="lead">${lead}</p>`);
 
 const statusPill = (s) => ({ drafted: '<span class="pill ok">Draft ready</span>', rejected: '<span class="pill bad">Not a fit</span>', error: '<span class="pill">Retrying</span>', processing: '<span class="pill acc">Processing</span>' }[s] || "");
 
@@ -64,7 +67,8 @@ function startupItem(s, { showDraft = true, rank = null, inline = false } = {}) 
 
 const views = {
   async home() {
-    head("Funding outreach, on autopilot.", "Finds startups that just announced a seed or pre-seed round, scores them against your accelerator’s thesis, and leaves a researched, personalised draft in Gmail. Non-fits are never shown.");
+    head("Funding outreach, <em>on autopilot.</em>", "Finds startups that just announced a seed or pre-seed round, scores them against your accelerator’s thesis, and leaves a researched, personalised draft in Gmail. Non-fits are never shown.");
+    app.insertAdjacentHTML("beforeend", '<div class="hero-cta"><a class="btn" href="/drafts">Review drafts</a><a class="btn ghost" href="/runs">Run now</a></div>');
     loading();
     const d = await api("view=overview");
     done();
