@@ -1,9 +1,10 @@
 import { supabase } from "../src/clients.js";
+import { maskEmail } from "../src/contacts.js";
 
 // Read-only public data feed for the dashboard pages. Never exposes secrets or recipient emails.
 const REPO = "https://github.com/sid1935/Funding-Outreach";
 const STARTUP_COLS =
-  "id,name,domain,round_type,amount_usd,announced_at,source_url,description,status,fit_score,fit_rationale,fit_breakdown,created_at,outreach(id,status,decided_at,sent_to,fit_score,subject,body,rationale,thesis_version,created_at)";
+  "id,name,domain,round_type,amount_usd,announced_at,source_url,description,status,fit_score,fit_rationale,fit_breakdown,founders,contact_email,contact_type,contact_source,created_at,outreach(id,status,decided_at,sent_to,fit_score,subject,body,rationale,thesis_version,created_at)";
 
 export default async function handler(req, res) {
   const view = req.query?.view || "overview";
@@ -22,7 +23,8 @@ export default async function handler(req, res) {
       const status = ["drafted", "rejected", "error", "processing"].includes(req.query.status) ? req.query.status : null;
       let q = supabase.from("startups").select(STARTUP_COLS).order("fit_score", { ascending: false, nullsFirst: false }).order("id", { ascending: false }).limit(200);
       if (status) q = q.eq("status", status);
-      out = { startups: (await q).data ?? [] };
+      // The full address stays server-side (database and the Gmail draft); the public page gets a masked version.
+      out = { startups: ((await q).data ?? []).map(({ contact_email, ...x }) => ({ ...x, contact_masked: maskEmail(contact_email) })) };
     } else if (view === "thesis") {
       const { data } = await supabase
         .from("thesis")

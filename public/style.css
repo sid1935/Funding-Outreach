@@ -161,3 +161,4 @@ details.ms[open] { border-color:var(--accent); box-shadow:0 0 0 3px rgba(59,130,
 .card.note { background:linear-gradient(180deg, rgba(37,99,235,.18), rgba(11,22,48,.9)); border-color:rgba(59,130,246,.5); margin-bottom:16px; font-size:14px; padding:16px 20px; }
 
 @media (max-width:600px) { .nav-in { gap:10px; } nav { margin-left:0; } main { padding-top:30px; } .btn { padding:9px 16px; } }
+.faint { color:var(--muted); opacity:.8; } .mono { font-family:var(--mono); }

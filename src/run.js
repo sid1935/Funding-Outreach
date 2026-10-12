@@ -48,7 +48,8 @@ async function processStartup(s, thesis) {
   const id = await claim(s);
   if (!id) { stats.duplicates++; console.log(`  skip (already seen): ${s.name}`); return; }
   try {
-    const { siteText, email, domain } = await research(s); // research first so scoring sees the company's own site
+    const { siteText, email, domain, contact, founders } = await research(s);
+    if (!DRY_RUN) await supabase.from("startups").update({ founders, contact_email: contact?.email ?? null, contact_type: contact?.type ?? null, contact_source: contact?.source ?? null }).eq("id", id); // own update: tolerant of missing columns // research first so scoring sees the company's own site
     if (domain && !s.domain) await supabase.from("startups").update({ domain }).eq("id", id); // remember it; a unique conflict is harmless
     const fit = await scoreFit(s, thesis, siteText);
     // Kept in its own update so a missing column can never block the status change.
@@ -61,7 +62,7 @@ async function processStartup(s, thesis) {
       console.log(`  no fit (${fit.score}): ${s.name}`);
       return;
     }
-    const mail = await draftEmail(s, thesis, fit, siteText);
+    const mail = await draftEmail(s, thesis, fit, siteText, founders);
     if (DRY_RUN) {
       console.log(`\n--- DRY RUN draft for ${s.name} (score ${fit.score}) ---\nTo: ${email ?? "(none)"}\nSubject: ${mail.subject}\n\n${mail.body}\n`);
       await supabase.from("startups").delete().eq("id", id); // leave no trace so a real run can process it

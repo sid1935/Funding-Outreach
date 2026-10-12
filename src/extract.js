@@ -12,6 +12,7 @@ const schema = {
     country: { type: Type.STRING },
     description: { type: Type.STRING, description: "One or two sentences on what the company builds" },
     investors: { type: Type.ARRAY, items: { type: Type.STRING } },
+    founders: { type: Type.ARRAY, description: "Founders or CEO named in the article, if any", items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, role: { type: Type.STRING } }, required: ["name"] } },
   },
   required: ["is_funding_announcement", "company_name", "round_type", "description"],
 };
@@ -39,6 +40,7 @@ URL: ${article.url}`,
     country: out.country || null,
     description: out.description,
     investors: out.investors || [],
+    founders: (out.founders || []).filter((f) => f.name).slice(0, 4),
     source_url: article.url,
     announced_at: article.publishedAt,
   };

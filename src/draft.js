@@ -1,6 +1,7 @@
 import { Type } from "@google/genai";
 import { geminiJson, ai, MODEL } from "./clients.js";
 import { normalizeDomain } from "./extract.js";
+import { findContacts } from "./contacts.js";
 
 const strip = (h) =>
   h.replace(/<(script|style|noscript)[\s\S]*?<\/\1>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
@@ -21,24 +22,21 @@ Reply with ONLY the bare domain (like example.com), or NONE if you are not sure.
   }
 }
 
-// Light research: pull the startup's own homepage text and any public contact email.
+// Light research: the company's own site text, plus a contact address and founder names found on it.
 export async function research(startup) {
   let domain = startup.domain;
   if (!domain) domain = await findDomain(startup);
-  if (!domain) return { siteText: "", email: null, domain: null };
+  const none = { siteText: "", email: null, domain: null, contact: null, founders: startup.founders || [] };
+  if (!domain) return none;
   try {
-    const res = await fetch(`https://${domain}`, {
-      signal: AbortSignal.timeout(10000),
-      headers: { "User-Agent": "Mozilla/5.0 funding-outreach" },
-    });
+    const res = await fetch(`https://${domain}`, { signal: AbortSignal.timeout(10000), headers: { "User-Agent": "Mozilla/5.0 funding-outreach" } });
     const html = await res.text();
-    const mail = html.match(/mailto:([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/i)?.[1] ?? null;
-    const siteText = strip(html).slice(0, 3500);
     const first = startup.name.toLowerCase().split(/\s+/)[0];
-    if (!startup.domain && !html.toLowerCase().includes(first)) return { siteText: "", email: null, domain: null };
-    return { siteText, email: mail, domain };
+    if (!startup.domain && !html.toLowerCase().includes(first)) return none; // not the right company
+    const c = await findContacts(startup, domain, startup.founders || []);
+    return { siteText: strip(html).slice(0, 3500) || c.text, email: c.email, domain, contact: c.email ? { email: c.email, type: c.type, source: c.source } : null, founders: c.founders };
   } catch {
-    return { siteText: "", email: null, domain: null };
+    return none;
   }
 }
 
@@ -50,7 +48,9 @@ const schema = {
   required: ["subject", "body"],
 };
 
-export async function draftEmail(startup, thesis, fit, siteText) {
+export async function draftEmail(startup, thesis, fit, siteText, founders = []) {
+  const names = founders.map((f) => f.name.split(/\s+/)[0]);
+  const greeting = names.length === 1 ? `Hi ${names[0]},` : names.length === 2 ? `Hi ${names[0]} and ${names[1]},` : names.length > 2 ? `Hi ${names.slice(0, -1).join(", ")} and ${names.at(-1)},` : "Hi team,";
   return geminiJson(
     `Write a short, warm, personalised cold email from ${thesis.sender_name} at ${thesis.sender_org} to the
 founders of ${startup.name}, who just announced a ${startup.round_type} round.
@@ -63,6 +63,7 @@ Rules:
 - Use ONLY facts below. Never invent traction, names, numbers or mutual connections.
 - Subject: under 8 words, about THEM (what they build or their round). Never include the accelerator's name
   or the startup's name followed by "and". Example style: "Congrats on the pre-seed for on-prem security AI".
+- Start the body with exactly this greeting on its own line: ${greeting}
 - Format the body as 3 short paragraphs separated by a blank line (use \\n\\n): (1) congratulations plus one
   specific observation, (2) why they fit and what we offer, (3) the ask. Put the sign-off on its own line.
 - Investors are separate companies. Never say the round was "with" an investor or imply the investor is the

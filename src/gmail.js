@@ -59,3 +59,8 @@ export async function sendMail({ draftId, to, subject, body }) {
   }
   return (await gmail({ url: "messages/send" }, { raw })).id;
 }
+
+// Rewrites an existing Gmail draft (used to add a recipient found later). Never sends.
+export async function updateDraft({ draftId, to, subject, body }) {
+  await gmail({ url: `drafts/${draftId}`, method: "PUT" }, { message: { raw: buildRaw({ to, subject, body }) } });
+}

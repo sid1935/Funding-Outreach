@@ -120,3 +120,9 @@ alter table outreach add column if not exists status text not null default 'pend
 alter table outreach add column if not exists decided_at timestamptz;
 alter table outreach add column if not exists sent_to text;
 alter table outreach add column if not exists gmail_message_id text;
+
+-- 8. Founders and public contact address (found on the company's own website).
+alter table startups add column if not exists founders jsonb;          -- [{name, role}]
+alter table startups add column if not exists contact_email text;
+alter table startups add column if not exists contact_type text;      -- 'founder' | 'generic'
+alter table startups add column if not exists contact_source text;    -- page the address was found on
