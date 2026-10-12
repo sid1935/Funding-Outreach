@@ -23,7 +23,7 @@ document.body.insertAdjacentHTML("afterbegin", `<header class="nav"><div class="
   <button class="menu-btn" id="menu-btn" aria-label="Menu" aria-expanded="false">Menu</button>
   <nav id="nav">${NAV.map(([h, l, k]) => `<a href="${h}" class="${k === page ? "on" : ""}">${l}</a>`).join("")}</nav></div></header>`);
 $("#menu-btn").onclick = (e) => { const open = $("#nav").classList.toggle("open"); e.currentTarget.setAttribute("aria-expanded", open); e.currentTarget.textContent = open ? "Close" : "Menu"; };
-document.body.insertAdjacentHTML("beforeend", `<footer><div class="foot-mark">Outreach</div><div class="foot-links">${NAV.map(([h, l]) => `<a href="${h}">${l}</a>`).join("")}<a href="${REPO}" target="_blank" rel="noopener">Source on GitHub</a><span>Drafts only: nothing is sent until someone approves. New funding news is scanned every hour.</span></div></footer>`);
+document.body.insertAdjacentHTML("beforeend", `<footer><div class="foot-links">${NAV.map(([h, l]) => `<a href="${h}">${l}</a>`).join("")}<a href="${REPO}" target="_blank" rel="noopener">Source on GitHub</a><span>Drafts only: nothing is sent until someone approves. New funding news is scanned every hour.</span></div></footer>`);
 
 const app = $("#app");
 const api = (q) => fetch("/api/status?" + q).then((r) => (r.ok ? r.json() : Promise.reject()));
@@ -95,13 +95,31 @@ const views = {
 
   async startups() {
     const st = new URLSearchParams(location.search).get("status") || "";
-    head("All startups", "Every startup the pipeline has evaluated, ranked by fit score. A startup is scored once, when it first appears; its rank never gets recalculated.");
+    head("All startups", "Every startup the pipeline has evaluated, best fit first. Each is scored once, when it first appears.");
     const chip = (v, l) => `<a href="/startups${v ? "?status=" + v : ""}" class="${st === v ? "on" : ""}">${l}</a>`;
     app.insertAdjacentHTML("beforeend", `<div class="chips">${chip("", "All")}${chip("drafted", "Draft ready")}${chip("rejected", "Rejected")}</div>`);
     loading();
     const d = await api("view=startups" + (st ? "&status=" + st : ""));
     done();
-    app.insertAdjacentHTML("beforeend", `<div class="card">${d.startups.length ? d.startups.map((s, i) => startupItem(s, { rank: i + 1 })).join("") : '<div class="empty">Nothing here yet.</div>'}</div>`);
+    // Just a logo, the name and the score; the email and the details live on the Drafts page.
+    const initial = (s) => esc((s.name.trim()[0] || "?").toUpperCase());
+    const tile = (s) => {
+      const o = Array.isArray(s.outreach) ? s.outreach[0] : s.outreach;
+      const score = s.fit_score ?? o?.fit_score;
+      const logo = s.domain
+        ? `<img class="logo-img" src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(s.domain)}&sz=128" alt="" loading="lazy" data-initial="${initial(s)}">`
+        : `<span class="logo-fallback">${initial(s)}</span>`;
+      return `<div class="scard">${logo}<div class="sname">${esc(s.name)}</div>
+        <div class="sscore">${score ?? "–"}<span class="bar"><i style="width:${Math.min(100, score || 0)}%"></i></span></div></div>`;
+    };
+    app.insertAdjacentHTML("beforeend", d.startups.length ? `<div class="sgrid">${d.startups.map(tile).join("")}</div>` : '<div class="card empty">Nothing here yet.</div>');
+    // Sites without a usable icon fall back to an initial.
+    const fallback = (img) => img.replaceWith(Object.assign(document.createElement("span"), { className: "logo-fallback", textContent: img.dataset.initial }));
+    app.querySelectorAll("img.logo-img").forEach((img) => {
+      img.onerror = () => fallback(img);
+      img.onload = () => { if (img.naturalWidth < 24) fallback(img); };
+      if (img.complete) (img.naturalWidth < 24 ? fallback(img) : null);
+    });
   },
 
   async drafts() {
