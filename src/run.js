@@ -49,6 +49,7 @@ async function saveSourceReport(report = []) {
 async function processStartup(s, thesis) {
   const id = await claim(s);
   if (!id) { stats.duplicates++; console.log(`  skip (already seen): ${s.name}`); return; }
+  if (!DRY_RUN && s.industry) await supabase.from("startups").update({ industry: s.industry }).eq("id", id); // own update: tolerant of a missing column
   try {
     const { siteText, email, domain, contact, founders } = await research(s);
     if (!DRY_RUN) await supabase.from("startups").update({ founders }).eq("id", id); // contact lookup waits until the startup passes the score (below)

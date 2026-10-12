@@ -126,3 +126,6 @@ alter table startups add column if not exists founders jsonb;          -- [{name
 alter table startups add column if not exists contact_email text;
 alter table startups add column if not exists contact_type text;      -- 'founder' | 'generic'
 alter table startups add column if not exists contact_source text;    -- page the address was found on
+
+-- 9. Industry (one primary label per startup, used by the dashboard filter).
+alter table startups add column if not exists industry text;

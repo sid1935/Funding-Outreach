@@ -1,5 +1,6 @@
 import { Type } from "@google/genai";
 import { geminiJson } from "./clients.js";
+import { INDUSTRIES, normalizeIndustry } from "./industries.js";
 
 const schema = {
   type: Type.OBJECT,
@@ -11,6 +12,7 @@ const schema = {
     amount_usd: { type: Type.NUMBER, description: "Approx USD amount, 0 if unknown" },
     country: { type: Type.STRING },
     description: { type: Type.STRING, description: "One or two sentences on what the company builds" },
+    industry: { type: Type.STRING, enum: INDUSTRIES, description: "The single best-fitting industry for what the company builds" },
     investors: { type: Type.ARRAY, items: { type: Type.STRING } },
     founders: { type: Type.ARRAY, description: "Founders or CEO named in the article, if any", items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, role: { type: Type.STRING } }, required: ["name"] } },
   },
@@ -39,6 +41,7 @@ URL: ${article.url}`,
     amount_usd: out.amount_usd || null,
     country: out.country || null,
     description: out.description,
+    industry: normalizeIndustry(out.industry),
     investors: out.investors || [],
     founders: (out.founders || []).filter((f) => f.name).slice(0, 4),
     source_url: article.url,
