@@ -45,7 +45,7 @@ function startupItem(s, { showDraft = true, rank = null } = {}) {
   const act = !(showDraft && o) ? "" :
     o.status === "sent" ? `<div class="meta ok" style="margin-top:10px">✓ Sent to ${esc(o.sent_to)} · ${when(o.decided_at)}</div>`
     : o.status === "rejected" ? `<div class="meta bad" style="margin-top:10px">Rejected · ${when(o.decided_at)}</div>`
-    : `<div class="acts"><button class="btn" data-act="approve" data-id="${o.id}">Approve &amp; send</button><button class="btn ghost" data-act="reject" data-id="${o.id}">Reject</button></div>`;
+    : `<div class="acts"><button class="btn go" data-act="approve" data-id="${o.id}">Approve &amp; send</button><button class="btn danger" data-act="reject" data-id="${o.id}">Reject</button></div>`;
   const link = s.source_url ? `<a href="${esc(s.source_url)}" target="_blank" rel="noopener">Read the announcement ↗</a>` : "";
   return `<div class="item"><div class="item-h"><div>
     <div class="name">${rank ? `<span class="rank">#${rank}</span>` : ""}${esc(s.name)} ${decisionPill(s, o)}</div>
