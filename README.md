@@ -112,7 +112,7 @@ The dashboard is public, so sending is restricted by design:
 |---|---|
 | `/api/run` | Starts a run. Needs `Authorization: Bearer <CRON_SECRET>`; replies `202` immediately and works in the background |
 | `/api/trigger` | The dashboard's **Run now** button (public): refuses if a run is in progress or one started in the last 3 minutes |
-| `/api/status` | Read-only data for the dashboard. No email addresses, no secrets |
+| `/api/status` | Read-only data for the dashboard (including `view=startup&id=` for one startup). No email addresses, no secrets |
 | `/api/thesis` | Saves edits to the thesis (validated, no password) |
 | `/api/decision` | Approve / reject a draft (demo or live mode, atomic, one decision per draft) |
 
@@ -198,7 +198,8 @@ Light, airy design (pale canvas with soft gold / lilac washes, light grotesk typ
 | Page | Shows |
 |---|---|
 | `/` | Clickable stats, how it works, thesis summary |
-| `/startups` | Every evaluated startup, ranked by score; filter by status |
+| `/startups` | A tile per evaluated startup (logo, name, score), best first; filter by status. Each tile opens its detail page |
+| `/startup?id=…` | Everything about one startup: round, website, founders, score breakdown and reason, and its email 
 | `/drafts` | Fits: subject, the full email, founders, score breakdown, **Approve / Reject** buttons, and filters (Awaiting approval, Sent, Rejected, All) |
 | `/rejected` | Non-fits, each with a score and the reason |
 | `/sources` | Every news source, with status, items returned last run, totals and uptime |
