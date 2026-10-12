@@ -325,13 +325,38 @@ const views = {
   },
 
   async runs() {
-    head("Run history", "Each run scans the feeds, skips known startups, and drafts for new fits.");
+    head("Run history", "Each run scans the sources, skips known startups, and drafts for new fits. Runs happen every hour automatically; you can also start one now.");
+    app.insertAdjacentHTML("beforeend", '<div class="acts" style="margin:0 0 20px"><button class="btn" id="runnow">▶ Run now</button><span class="meta" id="runmsg"></span></div>');
     loading();
     const d = await api("view=runs");
     done();
     app.insertAdjacentHTML("beforeend", `<div class="card scroll"><table><tr><th>Started</th><th>Articles</th><th>Funding</th><th>Duplicates</th><th>Rejected</th><th>Drafted</th><th>Status</th></tr>${
       d.runs.map((r) => { const x = r.stats || {}; const s = r.error ? '<span class="pill bad">failed</span>' : r.finished_at ? '<span class="pill ok">ok</span>' : '<span class="pill acc">running</span>';
         return `<tr><td>${when(r.started_at)}</td><td>${x.articles ?? "—"}</td><td>${x.funding ?? "—"}</td><td>${x.duplicates ?? "—"}</td><td>${x.rejected ?? "—"}</td><td>${x.drafted ?? "—"}</td><td>${s}</td></tr>`; }).join("")}</table></div>`);
+
+    const btn = $("#runnow"), msg = $("#runmsg");
+    const running = d.runs[0] && !d.runs[0].finished_at && Date.now() - Date.parse(d.runs[0].started_at) < 6 * 60 * 1000;
+    const poll = (startedBefore) => {
+      btn.disabled = true; btn.textContent = "Running…"; msg.className = "meta"; msg.textContent = "Scanning sources. This takes about a minute.";
+      const t = setInterval(async () => {
+        try {
+          const { runs } = await api("view=runs");
+          const latest = runs[0];
+          if (latest && latest.finished_at && Date.parse(latest.started_at) >= startedBefore) { clearInterval(t); location.reload(); }
+        } catch {}
+      }, 5000);
+    };
+    if (running) poll(Date.parse(d.runs[0].started_at));
+    btn.onclick = async () => {
+      const t0 = Date.now() - 5000;
+      btn.disabled = true; msg.className = "meta"; msg.textContent = "Starting…";
+      try {
+        const r = await fetch("/api/trigger", { method: "POST" });
+        const j = await r.json().catch(() => ({}));
+        if (r.status === 202) return poll(t0);
+        msg.className = "meta bad"; msg.textContent = j.error || "Could not start a run."; btn.disabled = false;
+      } catch { msg.className = "meta bad"; msg.textContent = "Could not reach the server."; btn.disabled = false; }
+    };
   },
 };
 
