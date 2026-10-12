@@ -193,7 +193,7 @@ gh secret set -f .env     # for the GitHub Actions backup schedule
 
 ## Dashboard
 
-Dark navy theme with 3D buttons. Pages:
+Light, airy design (pale canvas with soft gold / lilac washes, light grotesk type with italic serif accents, pill buttons, collapsible "Menu" on small screens), inspired by orbit.law. Pages:
 
 | Page | Shows |
 |---|---|
