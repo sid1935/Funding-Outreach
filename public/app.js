@@ -123,44 +123,141 @@ const views = {
         <div class="card"><h2>What the email offers</h2><p style="margin:0">${esc(t.pitch)}</p><p class="meta" style="margin-bottom:0">Sent as ${esc(t.sender_name || "—")} from ${esc(t.sender_org)}</p></div></div>`);
       $("#edit").onclick = edit;
     };
+
+    // ---- dropdown building blocks ----
+    const canon = (v, presets) => presets.find((p) => p.toLowerCase() === String(v).toLowerCase()) || v;
+    const msField = (key, label, hint, presets, selected, allowCustom = true) => {
+      const sel = (selected || []).map((v) => canon(v, presets));
+      const all = [...new Set([...presets, ...sel])];
+      return `<div class="ms-wrap" data-ms="${key}"><div class="lab">${label}<small>${hint}</small></div>
+        <details class="ms"><summary><span class="ms-sum"></span></summary><div class="ms-panel">
+          ${all.map((o) => `<label class="chk"><input type="checkbox" value="${esc(o)}" ${sel.includes(o) ? "checked" : ""}> ${esc(o)}</label>`).join("")}
+          ${allowCustom ? `<div class="ms-add"><input placeholder="Add your own…" maxlength="60"><button type="button" class="btn ghost">Add</button></div>` : ""}
+        </div></details></div>`;
+    };
+    const wireMs = (wrap, emptyText) => {
+      const sum = wrap.querySelector(".ms-sum");
+      const upd = () => {
+        const v = [...wrap.querySelectorAll(".ms-panel input[type=checkbox]:checked")].map((i) => i.value);
+        sum.innerHTML = v.length ? `<b>${v.length} selected</b> · ${esc(v.slice(0, 4).join(", "))}${v.length > 4 ? "…" : ""}` : `<span class="meta">${emptyText}</span>`;
+      };
+      wrap.addEventListener("change", upd);
+      const add = wrap.querySelector(".ms-add");
+      if (add) {
+        const input = add.querySelector("input");
+        const go = () => {
+          const v = input.value.trim();
+          if (!v) return;
+          const exists = [...wrap.querySelectorAll(".ms-panel input[type=checkbox]")].find((i) => i.value.toLowerCase() === v.toLowerCase());
+          if (exists) exists.checked = true;
+          else add.insertAdjacentHTML("beforebegin", `<label class="chk"><input type="checkbox" value="${esc(v)}" checked> ${esc(v)}</label>`);
+          input.value = ""; upd();
+        };
+        add.querySelector("button").onclick = go;
+        input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); go(); } };
+      }
+      upd();
+    };
+    const picked = (key) => [...document.querySelectorAll(`[data-ms="${key}"] .ms-panel input[type=checkbox]:checked`)].map((i) => i.value);
+    const selectOf = (name, options, current) => `<select name="${name}">${options.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(current) ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
+
+    const SECTORS = ["SaaS", "AI", "Developer tools", "Fintech", "Climate", "Healthtech", "Biotech", "Edtech", "Cybersecurity", "Enterprise software", "Data and analytics", "Deep tech", "Robotics", "Hardware / IoT", "Logistics and supply chain", "E-commerce", "Marketplaces", "Consumer", "Agritech", "Proptech", "Insurtech", "HR tech", "Legal tech", "Energy", "Mobility", "Gaming", "Media", "Web3 / Crypto"];
+    const GEOS = ["India", "United States", "Canada", "United Kingdom", "Europe", "Middle East", "Africa", "Southeast Asia", "China", "Japan", "Australia and NZ", "Latin America"];
+    const EXCL = ["Crypto", "Gambling", "Adult", "Agency", "Consulting", "Consumer apps", "Services businesses", "Alcohol", "Tobacco", "Defence and weapons", "Real estate", "Biotech / drug discovery"];
+    const STAGES = ["pre-seed", "seed", "series-a"];
+    const CRITERIA = {
+      "Sector fit": "Does the company operate in a sector the accelerator targets?",
+      "Stage and round": "Is it at the right stage, and is the round size typical for it?",
+      "Product clarity": "Is there a clear product aimed at a specific customer?",
+      "Founder strength": "Do the founders show relevant technical or domain strength?",
+      "Need for the programme": "Would go-to-market, hiring and follow-on fundraising help they will soon need be valuable?",
+      "Market size": "Is the market large enough to build a venture-scale company?",
+      "Traction": "Is there evidence of customers, revenue or usage?",
+      "Technical depth": "Is the technology hard to replicate?",
+      "Business model": "Is there a clear, scalable way to make money?",
+      "Geography fit": "Is the company based where the accelerator operates?",
+      "Investor quality": "Is the round backed by credible investors?",
+      "Defensibility": "Does the company have a moat such as data, network effects or IP?",
+    };
+    const TEMPLATES = {
+      "B2B software and AI": "Early-stage startups building B2B software, AI infrastructure, fintech or climate technology, led by technical founders, that have just raised a pre-seed or seed round. We want companies with a clear product and a specific customer, who will soon need help with go-to-market, first hires and a Series A.",
+      "Fintech": "Early-stage fintech startups (payments, lending infrastructure, insurtech, wealth tools) that have just raised a pre-seed or seed round, with a clear regulatory-aware product and a specific customer segment.",
+      "Climate and energy": "Early-stage climate, energy and sustainability startups with a credible technology or business model that have just raised a pre-seed or seed round and need help scaling pilots into customers.",
+      "Health and biotech": "Early-stage healthtech and biotech startups with a clear clinical or operational problem, credible founders and a pre-seed or seed round, who would benefit from industry introductions and regulatory guidance.",
+      "Generalist": "Early-stage startups in any sector with a clear product, a specific customer and strong founders, that have just raised a pre-seed or seed round and are likely to need help with go-to-market, hiring and follow-on fundraising.",
+    };
+    const PITCHES = {
+      "12-week programme": "A 12-week program with mentorship from experienced operators, customer introductions, and a path to Series A investors.",
+      "Funding and mentorship": "Pre-seed funding, hands-on mentorship from founders who have scaled companies, and introductions to our network of investors.",
+      "Community and access": "A community of early-stage founders, weekly office hours with industry experts, and warm introductions to design partners and customers.",
+    };
+    const SCORES = Array.from({ length: 14 }, (_, i) => 30 + i * 5).map((n) => [n, `${n} / 100`]);
+    const WEIGHTS = Array.from({ length: 21 }, (_, i) => i * 5).map((n) => [n, `${n}%`]);
+
     const edit = () => {
       app.querySelector("#tv").remove();
-      const stages = ["pre-seed", "seed", "series-a"];
+      const scores = SCORES.some(([v]) => v === t.min_score) ? SCORES : [...SCORES, [t.min_score, `${t.min_score} / 100`]].sort((a, b) => a[0] - b[0]);
       app.insertAdjacentHTML("beforeend", `<form id="tv" class="card form" autocomplete="off">
         <h2>Edit thesis</h2>
-        <label>Description <small>What the accelerator looks for. The scorer reads this.</small><textarea name="description" rows="5" required>${esc(t.description)}</textarea></label>
-        <fieldset><legend>Stages</legend>${stages.map((s) => `<label class="chk"><input type="checkbox" name="stage" value="${s}" ${t.stages.includes(s) ? "checked" : ""}> ${s}</label>`).join("")}</fieldset>
-        <label>Sectors <small>Comma separated. Leave empty for any.</small><input name="sectors" value="${esc((t.sectors || []).join(", "))}"></label>
-        <label>Geographies <small>Comma separated. Leave empty for anywhere.</small><input name="geographies" value="${esc((t.geographies || []).join(", "))}"></label>
-        <label>Excluded <small>Comma separated. Anything matching is auto-rejected. Leave empty for none.</small><input name="exclusions" value="${esc((t.exclusions || []).join(", "))}"></label>
-        <label>Minimum score to draft <small>0 to 100</small><input name="min_score" type="number" min="0" max="100" value="${t.min_score}" required></label>
-        <fieldset><legend>Scoring rubric <span id="wsum" class="pill"></span></legend><div id="rows"></div><button type="button" class="btn ghost" id="addrow">+ Add criterion</button></fieldset>
+        <label>Start from a template <small>Optional. Fills the description below, which you can still edit.</small>
+          <select id="tpl"><option value="">Choose a template…</option>${Object.keys(TEMPLATES).map((k) => `<option>${esc(k)}</option>`).join("")}</select></label>
+        <label>Description <small>What the accelerator looks for. The scorer reads this.</small><textarea name="description" rows="4" required>${esc(t.description)}</textarea></label>
+        ${msField("stages", "Stages", "Which rounds to accept.", STAGES, t.stages, false)}
+        ${msField("sectors", "Sectors", "Pick any number, or none for every sector.", SECTORS, t.sectors)}
+        ${msField("geographies", "Geographies", "Pick any number, or none for anywhere.", GEOS, t.geographies)}
+        ${msField("exclusions", "Excluded", "Anything matching is auto-rejected. Pick none to exclude nothing.", EXCL, t.exclusions)}
+        <label>Minimum score to create a draft <small>Higher means fewer, stronger matches.</small>${selectOf("min_score", scores, t.min_score)}</label>
+        <fieldset><legend>Scoring rubric <span id="wsum" class="pill"></span></legend>
+          <div class="meta" style="margin-bottom:8px">Pick the criteria and how much each one counts. Weights must total 100%.</div>
+          <div id="rows"></div><button type="button" class="btn ghost" id="addrow">+ Add criterion</button></fieldset>
         <div class="two"><label>Sender name<input name="sender_name" value="${esc(t.sender_name)}" required></label><label>Organisation<input name="sender_org" value="${esc(t.sender_org)}" required></label></div>
+        <label>Pitch template <small>Optional. Fills the box below.</small>
+          <select id="ptpl"><option value="">Choose a pitch…</option>${Object.keys(PITCHES).map((k) => `<option>${esc(k)}</option>`).join("")}</select></label>
         <label>What the email offers <small>One or two true sentences. The email repeats this.</small><textarea name="pitch" rows="3">${esc(t.pitch)}</textarea></label>
         <div id="msg" class="meta"></div>
         <div class="item-h" style="margin-top:12px"><button class="btn" type="submit">Save changes</button><button class="btn ghost" type="button" id="cancel">Cancel</button></div></form>`);
+
+      document.querySelectorAll(".ms-wrap").forEach((w) => wireMs(w, { stages: "None selected", sectors: "Any sector", geographies: "Anywhere", exclusions: "None excluded" }[w.dataset.ms]));
+      $("#tpl").onchange = (e) => { if (e.target.value) document.querySelector("[name=description]").value = TEMPLATES[e.target.value]; };
+      $("#ptpl").onchange = (e) => { if (e.target.value) document.querySelector("[name=pitch]").value = PITCHES[e.target.value]; };
+
       const rows = $("#rows");
       const sum = () => {
         const total = [...rows.querySelectorAll("[name=w]")].reduce((a, i) => a + (Number(i.value) || 0), 0);
-        const el = $("#wsum"); el.textContent = `Weights total ${total}`; el.className = "pill " + (total === 100 ? "ok" : "bad");
+        const el = $("#wsum"); el.textContent = `Weights total ${total}%`; el.className = "pill " + (total === 100 ? "ok" : "bad");
       };
-      const addRow = (c = { name: "", weight: 0, description: "" }) => {
-        rows.insertAdjacentHTML("beforeend", `<div class="rrow"><input name="n" placeholder="Criterion" value="${esc(c.name)}" required><input name="w" type="number" min="0" max="100" value="${c.weight}" required title="Weight %"><input name="d" placeholder="What good looks like" value="${esc(c.description)}"><button type="button" class="x" title="Remove">×</button></div>`);
+      const addRow = (c = { name: "Traction", weight: 0, description: CRITERIA["Traction"] }) => {
+        const known = c.name in CRITERIA;
+        const nameOpts = [...Object.keys(CRITERIA).map((k) => [k, k]), ["__custom", "Custom…"]];
+        rows.insertAdjacentHTML("beforeend", `<div class="rrow">
+          <div>${selectOf("n", nameOpts, known ? c.name : "__custom")}<input name="cn" placeholder="Criterion name" maxlength="60" value="${known ? "" : esc(c.name)}" style="${known ? "display:none;" : ""}margin-top:6px"></div>
+          ${selectOf("w", WEIGHTS, c.weight)}
+          <input name="d" placeholder="What good looks like" maxlength="300" value="${esc(c.description)}">
+          <button type="button" class="x" title="Remove">×</button></div>`);
         sum();
       };
       rubric.forEach(addRow);
-      rows.oninput = sum;
-      rows.onclick = (e) => { if (e.target.classList.contains("x") && rows.children.length > 1) { e.target.parentElement.remove(); sum(); } };
+      rows.onchange = (e) => {
+        const row = e.target.closest(".rrow");
+        if (e.target.name === "n") {
+          const custom = e.target.value === "__custom";
+          row.querySelector("[name=cn]").style.display = custom ? "" : "none";
+          if (!custom) row.querySelector("[name=d]").value = CRITERIA[e.target.value];
+        }
+        sum();
+      };
+      rows.onclick = (e) => { if (e.target.classList.contains("x") && rows.children.length > 1) { e.target.closest(".rrow").remove(); sum(); } };
       $("#addrow").onclick = () => rows.children.length < 8 && addRow();
       $("#cancel").onclick = () => { $("#tv").remove(); view(); };
+
       $("#tv").onsubmit = async (e) => {
         e.preventDefault();
         const f = new FormData(e.target);
-        const csv = (k) => String(f.get(k) || "").split(",").map((x) => x.trim()).filter(Boolean);
         const body = { thesis: {
-          description: f.get("description"), stages: f.getAll("stage"), sectors: csv("sectors"), geographies: csv("geographies"),
-          exclusions: csv("exclusions"), min_score: f.get("min_score"), sender_name: f.get("sender_name"), sender_org: f.get("sender_org"), pitch: f.get("pitch"),
-          rubric: [...rows.children].map((r) => ({ name: r.querySelector("[name=n]").value, weight: Number(r.querySelector("[name=w]").value), description: r.querySelector("[name=d]").value })),
+          description: f.get("description"), stages: picked("stages"), sectors: picked("sectors"), geographies: picked("geographies"),
+          exclusions: picked("exclusions"), min_score: f.get("min_score"), sender_name: f.get("sender_name"), sender_org: f.get("sender_org"), pitch: f.get("pitch"),
+          rubric: [...rows.children].map((r) => { const sel = r.querySelector("[name=n]").value;
+            return { name: sel === "__custom" ? r.querySelector("[name=cn]").value : sel, weight: Number(r.querySelector("[name=w]").value), description: r.querySelector("[name=d]").value }; }),
         } };
         const msg = $("#msg"); msg.className = "meta"; msg.textContent = "Saving…";
         try {

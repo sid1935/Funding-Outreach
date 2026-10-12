@@ -86,5 +86,17 @@ footer { max-width:1040px; margin:0 auto; padding:0 20px 40px; color:var(--muted
 .form fieldset { border:1px solid var(--line); border-radius:12px; margin:0 0 14px; padding:12px 14px; } .form legend { font-weight:600; font-size:14px; padding:0 6px; }
 .chk { display:inline-block !important; margin:0 16px 0 0 !important; font-weight:500 !important; }
 .two { display:grid; grid-template-columns:1fr 1fr; gap:12px; } @media (max-width:600px) { .two { grid-template-columns:1fr; } }
-.rrow { display:grid; grid-template-columns:1.2fr 70px 2fr 32px; gap:8px; margin-bottom:8px; } @media (max-width:600px) { .rrow { grid-template-columns:1fr 70px 32px; } .rrow input:nth-child(3) { grid-column:1 / 4; } }
+.rrow { display:grid; grid-template-columns:1.3fr 92px 2fr 32px; gap:8px; margin-bottom:8px; } @media (max-width:600px) { .rrow { grid-template-columns:1fr 92px 32px; } .rrow input:nth-child(3) { grid-column:1 / 4; } }
 .x { background:none; border:0; color:var(--bad); font-size:22px; cursor:pointer; }
+.form select { width:100%; font:15px Inter,sans-serif; color:var(--text); background:var(--surface2); border:1px solid var(--line); border-radius:10px; padding:9px 12px; cursor:pointer; }
+.form select:focus { outline:2px solid var(--accent); border-color:transparent; }
+.ms-wrap { margin-bottom:14px; } .lab { font-weight:600; font-size:14px; margin-bottom:5px; } .lab small { display:block; font-weight:400; color:var(--muted); }
+details.ms { margin:0; padding:0; background:var(--surface2); border:1px solid var(--line); border-radius:10px; }
+details.ms > summary { list-style:none; cursor:pointer; padding:9px 12px; color:var(--text); font-weight:500; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+details.ms > summary::-webkit-details-marker { display:none; }
+details.ms > summary::after { content:'▾'; color:var(--muted); }
+details.ms[open] > summary::after { content:'▴'; }
+details.ms[open] { border-color:var(--accent); }
+.ms-panel { border-top:1px solid var(--line); padding:10px 12px; max-height:260px; overflow:auto; display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:6px 12px; background:var(--surface); border-radius:0 0 10px 10px; }
+.ms-panel .chk { margin:0 !important; display:flex !important; align-items:center; gap:8px; font-weight:500; }
+.ms-add { grid-column:1 / -1; display:flex; gap:8px; margin-top:6px; } .ms-add input { flex:1; }
