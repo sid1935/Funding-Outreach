@@ -32,19 +32,29 @@ const head = (h, lead) => (app.innerHTML = `<h1>${h}</h1><p class="lead">${lead}
 
 const statusPill = (s) => ({ drafted: '<span class="pill ok">Draft ready</span>', rejected: '<span class="pill bad">Not a fit</span>', error: '<span class="pill">Retrying</span>', processing: '<span class="pill acc">Processing</span>' }[s] || "");
 
+const decisionPill = (s, o) =>
+  s.status === "drafted" && o?.status === "sent" ? '<span class="pill ok">Sent</span>'
+  : s.status === "drafted" && o?.status === "rejected" ? '<span class="pill bad">Rejected</span>'
+  : s.status === "drafted" ? '<span class="pill acc">Awaiting approval</span>' : statusPill(s.status);
+
 function startupItem(s, { showDraft = true, rank = null } = {}) {
   const o = Array.isArray(s.outreach) ? s.outreach[0] : s.outreach;
   const score = s.fit_score ?? o?.fit_score;
   const why = s.status === "rejected" && s.fit_rationale ? `<p class="desc"><b>Why not a fit:</b> ${esc(s.fit_rationale)}</p>` : "";
   const bd = Array.isArray(s.fit_breakdown) && s.fit_breakdown.length ? `<details><summary>Score breakdown</summary>${s.fit_breakdown.map((c) => `<div class="row"><b style="min-width:170px">${esc(c.name)} <span class="meta">${c.weight}%</span></b><span class="score">${c.score}<span class="bar"><i style="width:${Math.min(100, c.score)}%"></i></span></span></div>`).join("")}</details>` : "";
+  const act = !(showDraft && o) ? "" :
+    o.status === "sent" ? `<div class="meta ok" style="margin-top:10px">✓ Sent to ${esc(o.sent_to)} · ${when(o.decided_at)}</div>`
+    : o.status === "rejected" ? `<div class="meta bad" style="margin-top:10px">Rejected · ${when(o.decided_at)}</div>`
+    : `<div class="acts"><button class="btn" data-act="approve" data-id="${o.id}">Approve &amp; send</button><button class="btn ghost" data-act="reject" data-id="${o.id}">Reject</button></div>`;
   const link = s.source_url ? `<a href="${esc(s.source_url)}" target="_blank" rel="noopener">Read the announcement ↗</a>` : "";
   return `<div class="item"><div class="item-h"><div>
-    <div class="name">${rank ? `<span class="rank">#${rank}</span>` : ""}${esc(s.name)} ${statusPill(s.status)}</div>
+    <div class="name">${rank ? `<span class="rank">#${rank}</span>` : ""}${esc(s.name)} ${decisionPill(s, o)}</div>
     <div class="meta">${roundName(s.round_type)} · ${money(s.amount_usd)}${s.domain ? " · " + esc(s.domain) : ""} · found ${when(s.created_at)}</div></div>
     ${score != null ? `<div class="score">${score}<span class="bar"><i style="width:${Math.min(100, score)}%"></i></span></div>` : ""}</div>
     <p class="desc">${esc(s.description)}</p>${why}
     ${bd}
     ${showDraft && o ? `<details><summary>${esc(o.subject)}</summary><pre class="mail">${esc(o.body)}</pre><div class="meta">Why it fits: ${esc(o.rationale)} · scored on thesis v${o.thesis_version}</div></details>` : ""}
+    ${act}
     <div class="meta" style="margin-top:8px">${link}</div></div>`;
 }
 
@@ -87,11 +97,30 @@ const views = {
   },
 
   async drafts() {
-    head("Drafts ready", "Fits the thesis. Each email is waiting in Gmail Drafts for review. Nothing is sent automatically.");
+    const f = new URLSearchParams(location.search).get("s") || "pending";
+    head("Drafts", "Emails that fit the thesis. Approve sends the email through Gmail; Reject discards it. Nothing is sent until someone approves.");
+    const chip = (v, l) => `<a href="/drafts?s=${v}" class="${f === v ? "on" : ""}">${l}</a>`;
+    app.insertAdjacentHTML("beforeend", `<div id="modebar"></div><div class="chips">${chip("pending", "Awaiting approval")}${chip("sent", "Sent")}${chip("rejected", "Rejected")}${chip("all", "All")}</div>`);
     loading();
-    const d = await api("view=startups&status=drafted");
+    const [d, m] = await Promise.all([api("view=startups&status=drafted"), api("view=mode").catch(() => ({ mode: "test" }))]);
     done();
-    app.insertAdjacentHTML("beforeend", `<div class="card">${d.startups.length ? d.startups.map((s, i) => startupItem(s, { rank: i + 1 })).join("") : '<div class="empty">No drafts yet.</div>'}</div>`);
+    $("#modebar").innerHTML = m.mode === "live" ? "" : '<div class="card note"><b>Demo mode.</b> Approve really sends through Gmail, but always to a single test inbox, never to the startup. The sent email is shown here once approved.</div>';
+    const list = d.startups.filter((x) => { const o = Array.isArray(x.outreach) ? x.outreach[0] : x.outreach; const st = o?.status || "pending"; return f === "all" || st === f; });
+    app.insertAdjacentHTML("beforeend", `<div class="card">${list.length ? list.map((x, i) => startupItem(x, { rank: i + 1 })).join("") : '<div class="empty">Nothing here.</div>'}</div>`);
+    app.onclick = async (e) => {
+      const btn = e.target.closest("[data-act]");
+      if (!btn) return;
+      const action = btn.dataset.act, id = Number(btn.dataset.id);
+      if (action === "approve" && !confirm(m.mode === "live" ? "Send this email to the founder now?" : "Send this email now? (Demo mode: it goes to the test inbox, not to the startup.)")) return;
+      const call = (pin) => fetch("/api/decision", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action, pin }) });
+      document.querySelectorAll("[data-act]").forEach((b) => (b.disabled = true));
+      btn.textContent = action === "approve" ? "Sending…" : "Rejecting…";
+      let r = await call();
+      let j = await r.json().catch(() => ({}));
+      if (j.error === "pin_required") { const pin = prompt("Enter the approval PIN"); if (pin) { r = await call(pin); j = await r.json().catch(() => ({})); } }
+      if (!r.ok) { alert(j.error === "pin_required" ? "Wrong or missing PIN." : j.error || "Something went wrong."); }
+      location.reload();
+    };
   },
 
   async rejected() {

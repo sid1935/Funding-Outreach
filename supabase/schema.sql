@@ -113,3 +113,10 @@ create table if not exists sources (
   ok_checks    int not null default 0
 );
 alter table sources enable row level security;
+
+-- 7. Approval workflow (dashboard Approve / Reject).
+alter table outreach add column if not exists status text not null default 'pending'
+  check (status in ('pending','sent','rejected'));
+alter table outreach add column if not exists decided_at timestamptz;
+alter table outreach add column if not exists sent_to text;
+alter table outreach add column if not exists gmail_message_id text;

@@ -3,7 +3,7 @@ import { supabase } from "../src/clients.js";
 // Read-only public data feed for the dashboard pages. Never exposes secrets or recipient emails.
 const REPO = "https://github.com/sid1935/Funding-Outreach";
 const STARTUP_COLS =
-  "id,name,domain,round_type,amount_usd,announced_at,source_url,description,status,fit_score,fit_rationale,fit_breakdown,created_at,outreach(fit_score,subject,body,rationale,thesis_version,created_at)";
+  "id,name,domain,round_type,amount_usd,announced_at,source_url,description,status,fit_score,fit_rationale,fit_breakdown,created_at,outreach(id,status,decided_at,sent_to,fit_score,subject,body,rationale,thesis_version,created_at)";
 
 export default async function handler(req, res) {
   const view = req.query?.view || "overview";
@@ -30,6 +30,8 @@ export default async function handler(req, res) {
         .eq("active", true)
         .single();
       out = { thesis: data };
+    } else if (view === "mode") {
+      out = { mode: process.env.SEND_MODE === "live" ? "live" : "test" };
     } else if (view === "sources") {
       const { data, error } = await supabase.from("sources").select("*").order("kind").order("name");
       out = { sources: error ? [] : data ?? [] };
