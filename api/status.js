@@ -30,12 +30,12 @@ export default async function handler(req, res) {
       const how = (src = "") => (/^hunter/i.test(src) ? "hunter" : /^personal/i.test(src) ? "personal website" : /^company inbox/i.test(src) ? "company inbox" : "company website");
       const urlIn = (src = "") => src.match(/https?:\/\/[^\s·]+/)?.[0] ?? null;
       const contact = (x) => {
-        if (!x.contact_email) return null;
+        if (!x.contact_email || x.status !== "drafted") return null; // contacts are only kept for startups that passed the score
         const method = how(x.contact_source);
         return { email: method === "hunter" ? maskEmail(x.contact_email) : x.contact_email, masked: method === "hunter", method, type: x.contact_type, source: urlIn(x.contact_source) };
       };
       out = { startups: ((await q).data ?? []).map(({ outreach, founders, contact_email, contact_type, contact_source, ...x }) => ({
-        ...x, founders: names(founders), contact: contact({ contact_email, contact_type, contact_source }),
+        ...x, founders: names(founders), contact: contact({ contact_email, contact_type, contact_source, status: x.status }),
         outreach: Array.isArray(outreach) ? outreach.map(hide) : hide(outreach),
       })) };
     } else if (view === "thesis") {
