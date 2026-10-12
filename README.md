@@ -167,6 +167,10 @@ The public API (`/api/status`) is read-only and never returns recipient emails o
 - **Extraction accuracy.** Amounts and rounds are read from short article snippets and can occasionally be wrong.
 - **Existing scores are final.** Changing the thesis or rubric affects new startups only; previously scored startups are not re-ranked.
 
+## Components map
+
+A one-page map of the system in the same Trigger → Input → Context → Processing → AI → Output format: [docs/Components_Map_Funding_Outreach.pdf](docs/Components_Map_Funding_Outreach.pdf).
+
 ## Project layout
 
 ```
@@ -175,4 +179,5 @@ public/       Dashboard (static HTML, app.js, style.css)
 src/          Pipeline: sources, extract, score, draft, gmail, run, thesis-config
 supabase/     schema.sql
 .github/      Workflow (backup schedule)
+docs/         Components map (PDF and PNG)
 ```
