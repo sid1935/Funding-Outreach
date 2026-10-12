@@ -41,11 +41,9 @@ export default async function handler(req, res) {
   try {
     const to = live ? row.to_email : process.env.DEMO_TO;
     if (!to) throw Object.assign(new Error("This draft has no recipient address. Add one in Gmail first."), { user: true });
-    const subject = live ? row.subject : `[DEMO] ${row.subject}`;
-    const body = live ? row.body
-      : `[Demo mode: approved on the dashboard. In live mode this goes to ${row.to_email || "the founder (no address found)"}.]
-
-${row.body}`;
+    // The email is sent exactly as drafted; only the recipient differs between demo and live mode.
+    const subject = row.subject;
+    const body = row.body;
     const messageId = await sendMail({ draftId: row.gmail_draft_id, to, subject, body });
     await supabase.from("outreach").update({ sent_to: to, gmail_message_id: messageId }).eq("id", id);
     return res.status(200).json({ ok: true, status: "sent", sent_to: to });

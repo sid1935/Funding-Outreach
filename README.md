@@ -92,7 +92,7 @@ The dashboard is public, so sending is restricted by design:
 
 | Mode | Set by | Behaviour |
 |---|---|---|
-| **Demo** (default) | `DEMO_TO` | Approve always sends to the one address in `DEMO_TO` (subject prefixed `[DEMO]`, with a note of who it would have gone to). Nobody can use the button to email a third party. |
+| **Demo** (default) | `DEMO_TO` | Approve always sends to the one address in `DEMO_TO` (the email itself is sent exactly as drafted, with no demo wording). Nobody can use the button to email a third party. |
 | **Live** | `SEND_MODE=live` and `APPROVAL_PIN` | Approve sends to the draft's real recipient and requires the PIN. Drafts with no recipient address are refused. |
 
 ## Architecture
