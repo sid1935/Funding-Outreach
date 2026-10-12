@@ -28,6 +28,16 @@ export default async function handler(req, res) {
       out = { startups: ((await q).data ?? []).map(({ outreach, founders, ...x }) => ({
         ...x, founders: names(founders), outreach: Array.isArray(outreach) ? outreach.map(hide) : hide(outreach),
       })) };
+    } else if (view === "startup") {
+      // One startup with everything the dashboard knows about it. Same privacy rules: no email addresses.
+      const id = Number(req.query.id);
+      if (!Number.isInteger(id)) return res.status(400).json({ error: "bad id" });
+      const { data } = await supabase.from("startups").select(STARTUP_COLS).eq("id", id).maybeSingle();
+      if (!data) return res.status(404).json({ error: "not found" });
+      const { outreach, founders, ...x } = data;
+      const o = Array.isArray(outreach) ? outreach[0] : outreach;
+      const { sent_to, ...draft } = o || {};
+      out = { startup: { ...x, founders: Array.isArray(founders) ? founders.map(({ name, role }) => ({ name, role })) : [], outreach: o ? { ...draft, sent: !!sent_to } : null } };
     } else if (view === "thesis") {
       const { data } = await supabase
         .from("thesis")

@@ -185,3 +185,17 @@ footer { max-width:1120px; margin:0 auto; padding:60px 28px 36px; border-top:1px
 .sname { font-size:20px; font-weight:400; letter-spacing:-.01em; line-height:1.25; overflow-wrap:break-word; }
 .sscore { display:flex; flex-direction:column; align-items:flex-end; gap:6px; font:300 30px "Hanken Grotesk",sans-serif; letter-spacing:-.03em; line-height:1; }
 .sscore .bar { width:56px; }
+
+/* ---- Startup detail page ---- */
+.scard { color:var(--text); }
+.back { display:inline-block; margin-bottom:34px; font-size:15px; color:var(--text2); background:none; }
+.back:hover { background:none; color:var(--text); text-decoration:underline; text-underline-offset:4px; }
+.shead { display:flex; align-items:center; gap:28px; flex-wrap:wrap; margin-bottom:34px; }
+.shead > div:nth-child(2) { flex:1 1 260px; }
+.logo-img.big, .logo-fallback.big { width:96px; height:96px; border-radius:26px; padding:14px; }
+.logo-fallback.big { font-size:44px; padding:0; }
+.bigscore { text-align:right; }
+.bigscore .n { font:300 76px "Hanken Grotesk",sans-serif; letter-spacing:-.05em; line-height:1; }
+.bar.wide { display:block; width:150px; margin:10px 0 6px auto; }
+.crit { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:12px 0; border-top:1px solid var(--line); }
+.crit-n { font-size:16px; }

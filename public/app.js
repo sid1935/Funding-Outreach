@@ -21,7 +21,7 @@ const NAV = [
 document.body.insertAdjacentHTML("afterbegin", `<header class="nav"><div class="nav-in">
   <a class="brand" href="/"><span class="logo"></span>Outreach</a>
   <button class="menu-btn" id="menu-btn" aria-label="Menu" aria-expanded="false">Menu</button>
-  <nav id="nav">${NAV.map(([h, l, k]) => `<a href="${h}" class="${k === page ? "on" : ""}">${l}</a>`).join("")}</nav></div></header>`);
+  <nav id="nav">${NAV.map(([h, l, k]) => `<a href="${h}" class="${k === page || (page === "startup" && k === "startups") ? "on" : ""}">${l}</a>`).join("")}</nav></div></header>`);
 $("#menu-btn").onclick = (e) => { const open = $("#nav").classList.toggle("open"); e.currentTarget.setAttribute("aria-expanded", open); e.currentTarget.textContent = open ? "Close" : "Menu"; };
 document.body.insertAdjacentHTML("beforeend", `<footer><div class="foot-links">${NAV.map(([h, l]) => `<a href="${h}">${l}</a>`).join("")}<a href="${REPO}" target="_blank" rel="noopener">Source on GitHub</a><span>Drafts only: nothing is sent until someone approves. New funding news is scanned every hour.</span></div></footer>`);
 
@@ -109,8 +109,8 @@ const views = {
       const logo = s.domain
         ? `<img class="logo-img" src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(s.domain)}&sz=128" alt="" loading="lazy" data-initial="${initial(s)}">`
         : `<span class="logo-fallback">${initial(s)}</span>`;
-      return `<div class="scard">${logo}<div class="sname">${esc(s.name)}</div>
-        <div class="sscore">${score ?? "–"}<span class="bar"><i style="width:${Math.min(100, score || 0)}%"></i></span></div></div>`;
+      return `<a class="scard" href="/startup?id=${s.id}">${logo}<div class="sname">${esc(s.name)}</div>
+        <div class="sscore">${score ?? "–"}<span class="bar"><i style="width:${Math.min(100, score || 0)}%"></i></span></div></a>`;
     };
     app.insertAdjacentHTML("beforeend", d.startups.length ? `<div class="sgrid">${d.startups.map(tile).join("")}</div>` : '<div class="card empty">Nothing here yet.</div>');
     // Sites without a usable icon fall back to an initial.
@@ -120,6 +120,65 @@ const views = {
       img.onload = () => { if (img.naturalWidth < 24) fallback(img); };
       if (img.complete) (img.naturalWidth < 24 ? fallback(img) : null);
     });
+  },
+
+  async startup() {
+    const id = new URLSearchParams(location.search).get("id");
+    app.innerHTML = '<a class="back" href="/startups">← All startups</a>';
+    loading();
+    let s;
+    try { s = (await api("view=startup&id=" + encodeURIComponent(id))).startup; } catch { s = null; }
+    done();
+    if (!s) { app.insertAdjacentHTML("beforeend", '<h1>Startup <em>not found</em></h1><p class="lead">That startup does not exist, or the link is out of date.</p>'); return; }
+    document.title = `${s.name} · Funding Outreach`;
+    const o = s.outreach;
+    const score = s.fit_score ?? o?.fit_score;
+    const initial = esc((s.name.trim()[0] || "?").toUpperCase());
+    const logo = s.domain
+      ? `<img class="logo-img big" src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(s.domain)}&sz=128" alt="" data-initial="${initial}">`
+      : `<span class="logo-fallback big">${initial}</span>`;
+    const state = s.status === "rejected" ? '<span class="pill bad">Not a fit</span>'
+      : o?.status === "sent" ? '<span class="pill ok">Email sent</span>'
+      : o?.status === "rejected" ? '<span class="pill bad">Draft rejected</span>'
+      : s.status === "drafted" ? '<span class="pill acc">Awaiting approval</span>' : statusPill(s.status);
+    const fact = (k, v) => (v ? `<div class="row"><b>${k}</b><span>${v}</span></div>` : "");
+    const link = (u, t) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)} ↗</a>`;
+    const bd = Array.isArray(s.fit_breakdown) ? s.fit_breakdown : [];
+
+    app.insertAdjacentHTML("beforeend", `
+      <div class="shead">${logo}<div><h1 style="margin:0 0 8px">${esc(s.name)}</h1><div>${state}<span class="pill">${esc(roundName(s.round_type))}</span>${s.amount_usd ? `<span class="pill">${money(s.amount_usd)}</span>` : ""}</div></div>
+        ${score != null ? `<div class="bigscore"><div class="n">${score}</div><span class="bar wide"><i style="width:${Math.min(100, score)}%"></i></span><div class="lbl">fit score</div></div>` : ""}</div>
+
+      <div class="card"><h2>About</h2>
+        ${s.description ? `<p class="desc" style="margin-top:0">${esc(s.description)}</p>` : ""}
+        ${fact("Round", `${esc(roundName(s.round_type))}${s.amount_usd ? " · " + money(s.amount_usd) : ""}`)}
+        ${fact("Website", s.domain ? link("https://" + s.domain, s.domain) : "")}
+        ${fact("Announced", s.announced_at ? when(s.announced_at) : "")}
+        ${fact("Found", when(s.created_at))}
+        ${fact("Source", s.source_url ? link(s.source_url, "the announcement") : "")}
+      </div>
+
+      ${Array.isArray(s.founders) && s.founders.length ? `<div class="card"><h2>Founders</h2>${s.founders.map((f) => `<div class="row"><b style="min-width:0;flex:1 1 200px;text-transform:none;letter-spacing:0;font:400 18px 'Hanken Grotesk',sans-serif;color:var(--text)">${esc(f.name)}</b><span class="meta" style="margin:0">${esc(f.role || "")}</span></div>`).join("")}</div>` : ""}
+
+      <div class="card"><h2>${s.status === "rejected" ? "Why it was not a fit" : "Why it fits"}</h2>
+        ${s.fit_rationale || o?.rationale ? `<p class="desc" style="margin-top:0">${esc(s.fit_rationale || o.rationale)}</p>` : '<p class="meta">No reason recorded.</p>'}
+        ${bd.length ? `<div style="margin-top:18px">${bd.map((c) => `<div class="crit"><div class="crit-n">${esc(c.name)} <span class="faint">${c.weight}%</span></div><div class="score" style="font-size:22px">${c.score}<span class="bar"><i style="width:${Math.min(100, c.score)}%"></i></span></div></div>`).join("")}</div>` : ""}
+        ${o?.thesis_version ? `<div class="meta" style="margin-top:12px">Scored once against thesis version ${o.thesis_version}.</div>` : ""}
+      </div>
+
+      ${o ? `<div class="card"><h2>Outreach email</h2>
+        <div class="meta" style="margin:-4px 0 4px">${o.status === "sent" ? `Sent via Gmail · ${when(o.decided_at)}` : o.status === "rejected" ? `Rejected · ${when(o.decided_at)}` : "Waiting in Gmail Drafts for approval"}</div>
+        <div class="mailbox"><div class="subj"><span class="faint">Subject</span>${esc(o.subject)}</div><pre class="mail">${esc(o.body)}</pre></div>
+        ${o.status === "pending" || !o.status ? '<div class="acts"><a class="btn" href="/drafts">Review in Drafts</a></div>' : ""}
+      </div>` : ""}`);
+
+    const img = app.querySelector("img.logo-img");
+    if (img) {
+      const fb = () => img.replaceWith(Object.assign(document.createElement("span"), { className: "logo-fallback big", textContent: img.dataset.initial }));
+      img.onerror = fb;
+      img.onload = () => { if (img.naturalWidth < 24) fb(); };
+      if (img.complete && img.naturalWidth < 24) fb();
+    }
   },
 
   async drafts() {
