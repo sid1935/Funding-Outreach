@@ -177,11 +177,11 @@ footer { max-width:1120px; margin:0 auto; padding:60px 28px 36px; border-top:1px
 }
 
 /* ---- Startups: logo, name and score only ---- */
-.sgrid { display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); }
+.sgrid { display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); }
 .scard { display:grid; grid-template-columns:52px 1fr auto; align-items:center; gap:4px 16px; background:rgba(255,255,255,.72); backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,.9); outline:1px solid var(--line); outline-offset:-1px; border-radius:22px; padding:20px 22px; box-shadow:var(--shadow); transition:transform .22s, box-shadow .22s; }
 .scard:hover { transform:translateY(-3px); box-shadow:0 24px 50px -28px rgba(107,63,160,.45); }
 .logo-img, .logo-fallback { width:52px; height:52px; border-radius:14px; background:#fff; border:1px solid var(--line); object-fit:contain; padding:8px; }
 .logo-fallback { display:grid; place-items:center; padding:0; font:italic 300 24px var(--serif); color:var(--accent); background:linear-gradient(135deg,var(--gold),var(--lilac)); border-color:transparent; }
-.sname { font-size:20px; font-weight:400; letter-spacing:-.01em; line-height:1.25; overflow-wrap:anywhere; }
+.sname { font-size:20px; font-weight:400; letter-spacing:-.01em; line-height:1.25; overflow-wrap:break-word; }
 .sscore { display:flex; flex-direction:column; align-items:flex-end; gap:6px; font:300 30px "Hanken Grotesk",sans-serif; letter-spacing:-.03em; line-height:1; }
 .sscore .bar { width:56px; }
