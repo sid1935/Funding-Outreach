@@ -24,7 +24,10 @@ export default async function handler(req, res) {
       let q = supabase.from("startups").select(STARTUP_COLS).order("fit_score", { ascending: false, nullsFirst: false }).order("id", { ascending: false }).limit(200);
       if (status) q = q.eq("status", status);
       // The full address stays server-side (database and the Gmail draft); the public page gets a masked version.
-      out = { startups: ((await q).data ?? []).map(({ contact_email, ...x }) => ({ ...x, contact_masked: maskEmail(contact_email) })) };
+      const hide = (o) => (o ? { ...o, sent_to: maskEmail(o.sent_to) } : o); // the "sent to" address is personal too
+      out = { startups: ((await q).data ?? []).map(({ contact_email, outreach, ...x }) => ({
+        ...x, contact_masked: maskEmail(contact_email), outreach: Array.isArray(outreach) ? outreach.map(hide) : hide(outreach),
+      })) };
     } else if (view === "thesis") {
       const { data } = await supabase
         .from("thesis")
