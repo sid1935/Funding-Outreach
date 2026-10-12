@@ -37,7 +37,7 @@ const decisionPill = (s, o) =>
   : s.status === "drafted" && o?.status === "rejected" ? '<span class="pill bad">Rejected</span>'
   : s.status === "drafted" ? '<span class="pill acc">Awaiting approval</span>' : statusPill(s.status);
 
-function startupItem(s, { showDraft = true, rank = null } = {}) {
+function startupItem(s, { showDraft = true, rank = null, inline = false } = {}) {
   const o = Array.isArray(s.outreach) ? s.outreach[0] : s.outreach;
   const score = s.fit_score ?? o?.fit_score;
   const why = s.status === "rejected" && s.fit_rationale ? `<p class="desc"><b>Why not a fit:</b> ${esc(s.fit_rationale)}</p>` : "";
@@ -55,7 +55,9 @@ function startupItem(s, { showDraft = true, rank = null } = {}) {
     <p class="desc">${esc(s.description)}</p>${why}
     ${who}
     ${bd}
-    ${showDraft && o ? `<details><summary>${esc(o.subject)}</summary><pre class="mail">${esc(o.body)}</pre><div class="meta">Why it fits: ${esc(o.rationale)} · scored on thesis v${o.thesis_version}</div></details>` : ""}
+    ${!(showDraft && o) ? "" : inline
+      ? `<div class="mailbox"><div class="subj"><span class="faint">Subject</span>${esc(o.subject)}</div><pre class="mail">${esc(o.body)}</pre><div class="meta">Why it fits: ${esc(o.rationale)} · scored on thesis v${o.thesis_version}</div></div>`
+      : `<details><summary>Subject: ${esc(o.subject)}</summary><pre class="mail">${esc(o.body)}</pre><div class="meta">Why it fits: ${esc(o.rationale)} · scored on thesis v${o.thesis_version}</div></details>`}
     ${act}
     <div class="meta" style="margin-top:8px">${link}</div></div>`;
 }
@@ -108,7 +110,7 @@ const views = {
     done();
     $("#modebar").innerHTML = m.mode === "live" ? "" : '<div class="card note"><b>Demo mode.</b> Approve really sends through Gmail, but always to a single test inbox, never to the startup. The sent email is shown here once approved.</div>';
     const list = d.startups.filter((x) => { const o = Array.isArray(x.outreach) ? x.outreach[0] : x.outreach; const st = o?.status || "pending"; return f === "all" || st === f; });
-    app.insertAdjacentHTML("beforeend", `<div class="card">${list.length ? list.map((x, i) => startupItem(x, { rank: i + 1 })).join("") : '<div class="empty">Nothing here.</div>'}</div>`);
+    app.insertAdjacentHTML("beforeend", `<div class="card">${list.length ? list.map((x, i) => startupItem(x, { rank: i + 1, inline: true })).join("") : '<div class="empty">Nothing here.</div>'}</div>`);
     app.onclick = async (e) => {
       const btn = e.target.closest("[data-act]");
       if (!btn) return;

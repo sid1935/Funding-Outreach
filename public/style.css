@@ -162,3 +162,7 @@ details.ms[open] { border-color:var(--accent); box-shadow:0 0 0 3px rgba(59,130,
 
 @media (max-width:600px) { .nav-in { gap:10px; } nav { margin-left:0; } main { padding-top:30px; } .btn { padding:9px 16px; } }
 .faint { color:var(--muted); opacity:.8; } .mono { font-family:var(--mono); }
+.mailbox { margin-top:14px; border:1px solid var(--line2); border-radius:12px; background:rgba(5,11,26,.6); padding:14px 18px; }
+.mailbox .subj { font-weight:600; font-size:15px; padding-bottom:10px; margin-bottom:6px; border-bottom:1px solid var(--line); }
+.mailbox .subj .faint { font:700 11px var(--mono); letter-spacing:.1em; text-transform:uppercase; margin-right:10px; }
+.mailbox pre.mail { margin:8px 0 10px; }

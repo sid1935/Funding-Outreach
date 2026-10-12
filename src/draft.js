@@ -48,10 +48,30 @@ const schema = {
   required: ["subject", "body"],
 };
 
+// Every email has the same frame, added here rather than left to the model: a greeting on top and this sign-off at the
+// bottom. Any greeting or sign-off the model wrote anyway is removed first so nothing appears twice.
+const SIGNOFF_LINE = /^(best|best regards|kind regards|warm regards|regards|thanks|thank you|many thanks|sincerely|cheers|cordially)[,.!]*$/i;
+export function frameBody(body, greeting, senderName) {
+  let lines = String(body).replace(/\r/g, "").trim().split("\n");
+  if (lines.length && /^(hi|hello|hey|dear)\b/i.test(lines[0].trim())) lines.shift();               // model's own greeting
+  while (lines.length) {                                                                              // model's own sign-off
+    const last = lines.at(-1).trim();
+    if (!last || SIGNOFF_LINE.test(last) || last.toLowerCase() === String(senderName).toLowerCase()) lines.pop();
+    else break;
+  }
+  const text = lines.join("\n").trim();
+  return `${greeting}\n\n${text}\n\nThank you,\nWarm Regards,\n${senderName}`;
+}
+
+export function greetingFor(founders = []) {
+  const names = founders.map((f) => f.name.split(/\s+/)[0]);
+  return names.length === 1 ? `Hi ${names[0]},` : names.length === 2 ? `Hi ${names[0]} and ${names[1]},` : names.length > 2 ? `Hi ${names.slice(0, -1).join(", ")} and ${names.at(-1)},` : "Hi team,";
+}
+
 export async function draftEmail(startup, thesis, fit, siteText, founders = []) {
   const names = founders.map((f) => f.name.split(/\s+/)[0]);
   const greeting = names.length === 1 ? `Hi ${names[0]},` : names.length === 2 ? `Hi ${names[0]} and ${names[1]},` : names.length > 2 ? `Hi ${names.slice(0, -1).join(", ")} and ${names.at(-1)},` : "Hi team,";
-  return geminiJson(
+  const out = await geminiJson(
     `Write a short, warm, personalised cold email from ${thesis.sender_name} at ${thesis.sender_org} to the
 founders of ${startup.name}, who just announced a ${startup.round_type} round.
 
@@ -59,13 +79,13 @@ Rules:
 - Under 130 words, plain text, no hype, no emojis, no markdown.
 - Open with something specific about what they build or the round. Congratulate briefly.
 - Say in one sentence why they fit (from the fit note) and one sentence on what we offer.
-- End with a low-pressure ask for a short call. Sign off as ${thesis.sender_name}.
+- End with a low-pressure ask for a short call. Do NOT write a sign-off or your name; both are added automatically.
 - Use ONLY facts below. Never invent traction, names, numbers or mutual connections.
 - Subject: under 8 words, about THEM (what they build or their round). Never include the accelerator's name
   or the startup's name followed by "and". Example style: "Congrats on the pre-seed for on-prem security AI".
-- Start the body with exactly this greeting on its own line: ${greeting}
+- Do NOT write a greeting line (like "Hi" or "Dear"); it is added automatically.
 - Format the body as 3 short paragraphs separated by a blank line (use \\n\\n): (1) congratulations plus one
-  specific observation, (2) why they fit and what we offer, (3) the ask. Put the sign-off on its own line.
+  specific observation, (2) why they fit and what we offer, (3) the ask.
 - Investors are separate companies. Never say the round was "with" an investor or imply the investor is the
   startup; if you mention them, say "led by X" or "backed by X", or leave them out.
 - Don't mention that a "fit note" or scoring exists, and don't say "aligns with our target profile".
@@ -78,4 +98,5 @@ Their website text: ${siteText || "(unavailable)"}`,
     schema,
     { model: process.env.GEMINI_DRAFT_MODEL || undefined }
   );
+  return { subject: out.subject.trim(), body: frameBody(out.body, greeting, thesis.sender_name) };
 }
