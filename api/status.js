@@ -22,10 +22,11 @@ export default async function handler(req, res) {
       const status = ["drafted", "rejected", "error", "processing"].includes(req.query.status) ? req.query.status : null;
       let q = supabase.from("startups").select(STARTUP_COLS).order("fit_score", { ascending: false, nullsFirst: false }).order("id", { ascending: false }).limit(200);
       if (status) q = q.eq("status", status);
-      // The full address stays server-side (database and the Gmail draft); the public page gets a masked version.
-      const hide = (o) => (o ? { ...o, sent_to: maskEmail(o.sent_to) } : o); // the "sent to" address is personal too
-      out = { startups: ((await q).data ?? []).map(({ contact_email, outreach, ...x }) => ({
-        ...x, contact_masked: maskEmail(contact_email), outreach: Array.isArray(outreach) ? outreach.map(hide) : hide(outreach),
+      // No email addresses of any kind in the public API: only founder names and roles.
+      const hide = (o) => { if (!o) return o; const { sent_to, ...rest } = o; return { ...rest, sent: !!sent_to }; };
+      const names = (list) => (Array.isArray(list) ? list.map(({ name, role }) => ({ name, role })) : list);
+      out = { startups: ((await q).data ?? []).map(({ outreach, founders, ...x }) => ({
+        ...x, founders: names(founders), outreach: Array.isArray(outreach) ? outreach.map(hide) : hide(outreach),
       })) };
     } else if (view === "thesis") {
       const { data } = await supabase
