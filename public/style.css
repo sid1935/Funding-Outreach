@@ -199,3 +199,10 @@ footer { max-width:1120px; margin:0 auto; padding:60px 28px 36px; border-top:1px
 .bar.wide { display:block; width:150px; margin:10px 0 6px auto; }
 .crit { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:12px 0; border-top:1px solid var(--line); }
 .crit-n { font-size:16px; }
+
+/* ---- Industry filter ---- */
+.filters { display:flex; justify-content:space-between; align-items:flex-start; gap:16px 28px; flex-wrap:wrap; margin-bottom:6px; }
+.filters .chips { margin-bottom:22px; }
+.indsel { display:flex; align-items:center; gap:12px; margin-bottom:22px; font-size:15px; }
+.indsel select { font:300 15px "Hanken Grotesk",sans-serif; color:var(--text); background:rgba(255,255,255,.85); border:1px solid var(--line2); border-radius:99px; padding:9px 18px; cursor:pointer; }
+.indsel select:focus { outline:none; border-color:var(--accent2); box-shadow:0 0 0 4px rgba(239,198,254,.55); }

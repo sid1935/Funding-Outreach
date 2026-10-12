@@ -94,13 +94,20 @@ const views = {
   },
 
   async startups() {
-    const st = new URLSearchParams(location.search).get("status") || "";
+    const params = new URLSearchParams(location.search);
+    const st = params.get("status") || "";
+    let industry = params.get("industry") || "";
     head("All startups", "Every startup the pipeline has evaluated, best fit first. Each is scored once, when it first appears.");
-    const chip = (v, l) => `<a href="/startups${v ? "?status=" + v : ""}" class="${st === v ? "on" : ""}">${l}</a>`;
-    app.insertAdjacentHTML("beforeend", `<div class="chips">${chip("", "All")}${chip("drafted", "Draft ready")}${chip("rejected", "Rejected")}</div>`);
+    // Status chips keep the industry choice when you switch between them.
+    const chip = (v, l) => {
+      const q = new URLSearchParams(); if (v) q.set("status", v); if (industry) q.set("industry", industry);
+      return `<a href="/startups${q.toString() ? "?" + q : ""}" class="${st === v ? "on" : ""}">${l}</a>`;
+    };
+    app.insertAdjacentHTML("beforeend", `<div class="filters"><div class="chips">${chip("", "All")}${chip("drafted", "Draft ready")}${chip("rejected", "Rejected")}</div><div id="indbox"></div></div><div id="grid"></div>`);
     loading();
     const d = await api("view=startups" + (st ? "&status=" + st : ""));
     done();
+
     // Just a logo, the name and the score; the email and the details live on the Drafts page.
     const initial = (s) => esc((s.name.trim()[0] || "?").toUpperCase());
     const tile = (s) => {
@@ -112,14 +119,33 @@ const views = {
       return `<a class="scard" href="/startup?id=${s.id}">${logo}<div class="sname">${esc(s.name)}</div>
         <div class="sscore">${score ?? "–"}<span class="bar"><i style="width:${Math.min(100, score || 0)}%"></i></span></div></a>`;
     };
-    app.insertAdjacentHTML("beforeend", d.startups.length ? `<div class="sgrid">${d.startups.map(tile).join("")}</div>` : '<div class="card empty">Nothing here yet.</div>');
-    // Sites without a usable icon fall back to an initial.
     const fallback = (img) => img.replaceWith(Object.assign(document.createElement("span"), { className: "logo-fallback", textContent: img.dataset.initial }));
-    app.querySelectorAll("img.logo-img").forEach((img) => {
-      img.onerror = () => fallback(img);
-      img.onload = () => { if (img.naturalWidth < 24) fallback(img); };
-      if (img.complete) (img.naturalWidth < 24 ? fallback(img) : null);
-    });
+    const render = () => {
+      const list = industry ? d.startups.filter((s) => s.industry === industry) : d.startups;
+      $("#grid").innerHTML = list.length ? `<div class="sgrid">${list.map(tile).join("")}</div>` : '<div class="card empty">No startups in this industry yet.</div>';
+      $("#grid").querySelectorAll("img.logo-img").forEach((img) => {   // sites without a usable icon fall back to an initial
+        img.onerror = () => fallback(img);
+        img.onload = () => { if (img.naturalWidth < 24) fallback(img); };
+        if (img.complete && img.naturalWidth < 24) fallback(img);
+      });
+    };
+
+    // Industry filter: only industries that actually occur, with counts, most common first.
+    const counts = {};
+    d.startups.forEach((s) => { if (s.industry) counts[s.industry] = (counts[s.industry] || 0) + 1; });
+    const names = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
+    if (industry && !counts[industry]) industry = "";
+    if (names.length) {
+      $("#indbox").innerHTML = `<label class="indsel"><span class="faint">Industry</span><select id="ind"><option value="">All industries (${d.startups.length})</option>${names.map((n) => `<option value="${esc(n)}" ${n === industry ? "selected" : ""}>${esc(n)} (${counts[n]})</option>`).join("")}</select></label>`;
+      $("#ind").onchange = (e) => {
+        industry = e.target.value;
+        const q = new URLSearchParams(location.search); industry ? q.set("industry", industry) : q.delete("industry");
+        history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : ""));
+        app.querySelectorAll(".chips a").forEach((a) => { const u = new URL(a.href); industry ? u.searchParams.set("industry", industry) : u.searchParams.delete("industry"); a.href = u.pathname + u.search; });
+        render();
+      };
+    }
+    render();
   },
 
   async startup() {
@@ -151,6 +177,7 @@ const views = {
 
       <div class="card"><h2>About</h2>
         ${s.description ? `<p class="desc" style="margin-top:0">${esc(s.description)}</p>` : ""}
+        ${fact("Industry", s.industry ? esc(s.industry) : "")}
         ${fact("Round", `${esc(roundName(s.round_type))}${s.amount_usd ? " · " + money(s.amount_usd) : ""}`)}
         ${fact("Website", s.domain ? link("https://" + s.domain, s.domain) : "")}
         ${fact("Announced", s.announced_at ? when(s.announced_at) : "")}
