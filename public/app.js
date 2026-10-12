@@ -43,18 +43,17 @@ function startupItem(s, { showDraft = true, rank = null } = {}) {
   const why = s.status === "rejected" && s.fit_rationale ? `<p class="desc"><b>Why not a fit:</b> ${esc(s.fit_rationale)}</p>` : "";
   const bd = Array.isArray(s.fit_breakdown) && s.fit_breakdown.length ? `<details><summary>Score breakdown</summary>${s.fit_breakdown.map((c) => `<div class="row"><b style="min-width:170px">${esc(c.name)} <span class="meta">${c.weight}%</span></b><span class="score">${c.score}<span class="bar"><i style="width:${Math.min(100, c.score)}%"></i></span></span></div>`).join("")}</details>` : "";
   const act = !(showDraft && o) ? "" :
-    o.status === "sent" ? `<div class="meta ok" style="margin-top:10px">✓ Sent to ${esc(o.sent_to)} · ${when(o.decided_at)}</div>`
+    o.status === "sent" ? `<div class="meta ok" style="margin-top:10px">✓ Sent via Gmail · ${when(o.decided_at)}</div>`
     : o.status === "rejected" ? `<div class="meta bad" style="margin-top:10px">Rejected · ${when(o.decided_at)}</div>`
     : `<div class="acts"><button class="btn go" data-act="approve" data-id="${o.id}">Approve &amp; send</button><button class="btn danger" data-act="reject" data-id="${o.id}">Reject</button></div>`;
-  const who = Array.isArray(s.founders) && s.founders.length ? `<div class="meta" style="margin-top:6px"><b>Founders</b> · ${s.founders.map((f) => esc(f.name) + (f.role ? ` <span class="faint">(${esc(f.role)})</span>` : "") + (f.linkedin ? ` <a href="${esc(f.linkedin)}" target="_blank" rel="noopener">LinkedIn ↗</a>` : "")).join(", ")}</div>` : "";
-  const reach = s.contact_masked ? `<div class="meta"><b>Contact</b> · <span class="mono">${esc(s.contact_masked)}</span> <span class="pill ${s.contact_type === "founder" ? "ok" : ""}">${s.contact_type === "founder" ? "founder" : "company inbox"}</span>${s.contact_source ? ` <a href="${esc(s.contact_source)}" target="_blank" rel="noopener">source ↗</a>` : ""}</div>` : (s.status === "drafted" ? '<div class="meta"><b>Contact</b> · <span class="faint">no public address found, add one in Gmail before sending</span></div>' : "");
+  const who = Array.isArray(s.founders) && s.founders.length ? `<div class="meta" style="margin-top:6px"><b>Founders</b> · ${s.founders.map((f) => esc(f.name) + (f.role ? ` <span class="faint">(${esc(f.role)})</span>` : "")).join(", ")}</div>` : "";
   const link = s.source_url ? `<a href="${esc(s.source_url)}" target="_blank" rel="noopener">Read the announcement ↗</a>` : "";
   return `<div class="item"><div class="item-h"><div>
     <div class="name">${rank ? `<span class="rank">#${rank}</span>` : ""}${esc(s.name)} ${decisionPill(s, o)}</div>
     <div class="meta">${roundName(s.round_type)} · ${money(s.amount_usd)}${s.domain ? " · " + esc(s.domain) : ""} · found ${when(s.created_at)}</div></div>
     ${score != null ? `<div class="score">${score}<span class="bar"><i style="width:${Math.min(100, score)}%"></i></span></div>` : ""}</div>
     <p class="desc">${esc(s.description)}</p>${why}
-    ${who}${reach}
+    ${who}
     ${bd}
     ${showDraft && o ? `<details><summary>${esc(o.subject)}</summary><pre class="mail">${esc(o.body)}</pre><div class="meta">Why it fits: ${esc(o.rationale)} · scored on thesis v${o.thesis_version}</div></details>` : ""}
     ${act}

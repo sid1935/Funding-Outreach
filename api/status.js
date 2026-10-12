@@ -1,10 +1,9 @@
 import { supabase } from "../src/clients.js";
-import { maskEmail } from "../src/contacts.js";
 
 // Read-only public data feed for the dashboard pages. Never exposes secrets or recipient emails.
 const REPO = "https://github.com/sid1935/Funding-Outreach";
 const STARTUP_COLS =
-  "id,name,domain,round_type,amount_usd,announced_at,source_url,description,status,fit_score,fit_rationale,fit_breakdown,founders,contact_email,contact_type,contact_source,created_at,outreach(id,status,decided_at,sent_to,fit_score,subject,body,rationale,thesis_version,created_at)";
+  "id,name,domain,round_type,amount_usd,announced_at,source_url,description,status,fit_score,fit_rationale,fit_breakdown,founders,created_at,outreach(id,status,decided_at,sent_to,fit_score,subject,body,rationale,thesis_version,created_at)";
 
 export default async function handler(req, res) {
   const view = req.query?.view || "overview";
