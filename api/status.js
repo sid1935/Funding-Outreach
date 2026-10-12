@@ -5,6 +5,13 @@ const REPO = "https://github.com/sid1935/Funding-Outreach";
 const STARTUP_COLS =
   "id,name,domain,round_type,amount_usd,announced_at,source_url,description,status,fit_score,fit_rationale,fit_breakdown,founders,industry,created_at,outreach(id,status,decided_at,sent_to,fit_score,subject,body,rationale,thesis_version,created_at)";
 
+// Only ask for the industry column once it exists, so the dashboard keeps working before the SQL has been run.
+let industryOk = null;
+async function startupCols() {
+  if (industryOk === null) industryOk = !(await supabase.from("startups").select("industry").limit(1)).error;
+  return industryOk ? STARTUP_COLS : STARTUP_COLS.replace("industry,", "");
+}
+
 export default async function handler(req, res) {
   const view = req.query?.view || "overview";
   try {
@@ -20,7 +27,7 @@ export default async function handler(req, res) {
       out = { thesis: thesis.data, lastRun: runs.data?.[0] ?? null, counts, repo: REPO };
     } else if (view === "startups") {
       const status = ["drafted", "rejected", "error", "processing"].includes(req.query.status) ? req.query.status : null;
-      let q = supabase.from("startups").select(STARTUP_COLS).order("fit_score", { ascending: false, nullsFirst: false }).order("id", { ascending: false }).limit(200);
+      let q = supabase.from("startups").select(await startupCols()).order("fit_score", { ascending: false, nullsFirst: false }).order("id", { ascending: false }).limit(200);
       if (status) q = q.eq("status", status);
       // No email addresses in the public API (they live in Supabase and in each Gmail draft's To field). Founder names and roles only.
       const hide = (o) => { if (!o) return o; const { sent_to, ...rest } = o; return { ...rest, sent: !!sent_to }; };
@@ -32,7 +39,7 @@ export default async function handler(req, res) {
       // One startup with everything the dashboard knows about it. Same privacy rules: no email addresses.
       const id = Number(req.query.id);
       if (!Number.isInteger(id)) return res.status(400).json({ error: "bad id" });
-      const { data } = await supabase.from("startups").select(STARTUP_COLS).eq("id", id).maybeSingle();
+      const { data } = await supabase.from("startups").select(await startupCols()).eq("id", id).maybeSingle();
       if (!data) return res.status(404).json({ error: "not found" });
       const { outreach, founders, ...x } = data;
       const o = Array.isArray(outreach) ? outreach[0] : outreach;
