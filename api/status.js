@@ -30,6 +30,9 @@ export default async function handler(req, res) {
         .eq("active", true)
         .single();
       out = { thesis: data };
+    } else if (view === "sources") {
+      const { data, error } = await supabase.from("sources").select("*").order("kind").order("name");
+      out = { sources: error ? [] : data ?? [] };
     } else if (view === "runs") {
       const { data } = await supabase
         .from("runs")

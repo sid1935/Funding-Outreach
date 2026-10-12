@@ -16,7 +16,7 @@ const DEFAULT_RUBRIC = [
 ];
 const NAV = [
   ["/", "Overview", "home"], ["/startups", "Startups", "startups"], ["/drafts", "Drafts", "drafts"],
-  ["/rejected", "Rejected", "rejected"], ["/thesis", "Thesis", "thesis"], ["/runs", "Runs", "runs"],
+  ["/rejected", "Rejected", "rejected"], ["/sources", "Sources", "sources"], ["/thesis", "Thesis", "thesis"], ["/runs", "Runs", "runs"],
 ];
 document.body.insertAdjacentHTML("afterbegin", `<header class="nav"><div class="nav-in">
   <a class="brand" href="/"><span class="logo"></span>Funding Outreach</a>
@@ -270,6 +270,29 @@ const views = {
       };
     };
     view();
+  },
+
+  async sources() {
+    head("Sources", "Everywhere the pipeline looks for funding news. Each run checks every source and records whether it responded and how many funding-related items it returned.");
+    loading();
+    const d = await api("view=sources");
+    done();
+    const list = d.sources || [];
+    if (!list.length) { app.insertAdjacentHTML("beforeend", '<div class="card empty">Source health will appear after the next run.</div>'); return; }
+    const ok = list.filter((x) => x.last_ok).length;
+    const items = list.reduce((a, x) => a + (x.last_items || 0), 0);
+    const kinds = [...new Set(list.map((x) => x.kind))];
+    const rate = (x) => (x.checks ? Math.round((100 * x.ok_checks) / x.checks) + "%" : "—");
+    app.insertAdjacentHTML("beforeend", `<div class="grid">
+      <div class="card"><div class="num">${list.length}</div><div class="lbl">Sources tracked</div></div>
+      <div class="card"><div class="num ok">${ok}</div><div class="lbl">Responding</div></div>
+      <div class="card"><div class="num ${list.length - ok ? "bad" : ""}">${list.length - ok}</div><div class="lbl">Not responding</div></div>
+      <div class="card"><div class="num">${items}</div><div class="lbl">Funding items last run</div></div></div>`);
+    kinds.forEach((k) => {
+      const rows = list.filter((x) => x.kind === k);
+      app.insertAdjacentHTML("beforeend", `<div class="card scroll"><h2>${esc(k)} · ${rows.length}</h2><table><tr><th>Source</th><th>Status</th><th>Last run</th><th>Total</th><th>Uptime</th><th>Last checked</th></tr>${
+        rows.map((x) => `<tr><td><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.name)}</a></td><td>${x.last_ok ? '<span class="pill ok">ok</span>' : `<span class="pill bad" title="${esc(x.last_error)}">failing</span>`}</td><td>${x.last_items ?? 0}</td><td>${x.total_items ?? 0}</td><td>${rate(x)}</td><td>${when(x.last_checked)}</td></tr>`).join("")}</table></div>`);
+    });
   },
 
   async runs() {

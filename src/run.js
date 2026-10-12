@@ -27,6 +27,23 @@ async function claim(s) {
   return null;
 }
 
+// Keeps one row per source with its latest health and running totals (shown on the Sources page).
+async function saveSourceReport(report = []) {
+  const { data: old, error } = await supabase.from("sources").select("url,total_items,checks,ok_checks");
+  if (error) throw error;
+  const prev = new Map((old ?? []).map((r) => [r.url, r]));
+  const now = new Date().toISOString();
+  const rows = report.map((r) => {
+    const p = prev.get(r.url);
+    return {
+      url: r.url, name: r.name, kind: r.kind, last_checked: now, last_ok: r.ok, last_error: r.error, last_items: r.items,
+      total_items: (p?.total_items ?? 0) + r.items, checks: (p?.checks ?? 0) + 1, ok_checks: (p?.ok_checks ?? 0) + (r.ok ? 1 : 0),
+    };
+  });
+  const { error: e2 } = await supabase.from("sources").upsert(rows);
+  if (e2) throw e2;
+}
+
 async function processStartup(s, thesis) {
   const id = await claim(s);
   if (!id) { stats.duplicates++; console.log(`  skip (already seen): ${s.name}`); return; }
@@ -78,6 +95,7 @@ export async function runPipeline({ deadlineMs = Infinity, concurrency = 4 } = {
 
     const articles = await fetchArticles();
     stats.articles = articles.length;
+    if (!DRY_RUN) await saveSourceReport(articles.report).catch((e) => console.warn("source report not saved:", e.message));
     const { data: seen } = await supabase.from("seen_articles").select("url").in("url", articles.map((a) => a.url));
     const seenSet = new Set((seen ?? []).map((r) => r.url));
     const fresh = articles.filter((a) => !seenSet.has(a.url));

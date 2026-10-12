@@ -98,3 +98,18 @@ alter table startups      enable row level security;
 alter table outreach      enable row level security;
 alter table seen_articles enable row level security;
 alter table runs          enable row level security;
+
+-- 6. Sources and their latest health (shown on the dashboard's Sources page).
+create table if not exists sources (
+  url          text primary key,
+  name         text not null,
+  kind         text not null,
+  last_checked timestamptz,
+  last_ok      boolean,
+  last_error   text,
+  last_items   int not null default 0,   -- funding-related items in the last window
+  total_items  int not null default 0,
+  checks       int not null default 0,
+  ok_checks    int not null default 0
+);
+alter table sources enable row level security;
