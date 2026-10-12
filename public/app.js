@@ -104,11 +104,10 @@ const views = {
     const f = new URLSearchParams(location.search).get("s") || "pending";
     head("Drafts", "Emails that fit the thesis. Approve sends the email through Gmail; Reject discards it. Nothing is sent until someone approves.");
     const chip = (v, l) => `<a href="/drafts?s=${v}" class="${f === v ? "on" : ""}">${l}</a>`;
-    app.insertAdjacentHTML("beforeend", `<div id="modebar"></div><div class="chips">${chip("pending", "Awaiting approval")}${chip("sent", "Sent")}${chip("rejected", "Rejected")}${chip("all", "All")}</div>`);
+    app.insertAdjacentHTML("beforeend", `<div class="chips">${chip("pending", "Awaiting approval")}${chip("sent", "Sent")}${chip("rejected", "Rejected")}${chip("all", "All")}</div>`);
     loading();
     const [d, m] = await Promise.all([api("view=startups&status=drafted"), api("view=mode").catch(() => ({ mode: "test" }))]);
     done();
-    $("#modebar").innerHTML = m.mode === "live" ? "" : '<div class="card note"><b>Demo mode.</b> Approve really sends through Gmail, but always to a single test inbox, never to the startup. The sent email is shown here once approved.</div>';
     const list = d.startups.filter((x) => { const o = Array.isArray(x.outreach) ? x.outreach[0] : x.outreach; const st = o?.status || "pending"; return f === "all" || st === f; });
     app.insertAdjacentHTML("beforeend", `<div class="card">${list.length ? list.map((x, i) => startupItem(x, { rank: i + 1, inline: true })).join("") : '<div class="empty">Nothing here.</div>'}</div>`);
     app.onclick = async (e) => {
