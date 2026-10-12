@@ -4,8 +4,9 @@ import { extractStartup, nameKey } from "./extract.js";
 import { loadThesis, scoreFit } from "./score.js";
 import { research, draftEmail } from "./draft.js";
 import { createDraft } from "./gmail.js";
+import { hunterEnabled, hunterContact } from "./hunter.js";
 
-const stats = { articles: 0, new_articles: 0, funding: 0, duplicates: 0, rejected: 0, drafted: 0, errors: 0 };
+const stats = { articles: 0, new_articles: 0, funding: 0, duplicates: 0, rejected: 0, drafted: 0, errors: 0, hunter: 0 };
 
 // Claim a startup before doing any work. The unique constraints on name_key/domain make this
 // atomic: if a startup was already handled (or another run is on it), we skip.
@@ -62,16 +63,28 @@ async function processStartup(s, thesis) {
       console.log(`  no fit (${fit.score}): ${s.name}`);
       return;
     }
-    const mail = await draftEmail(s, thesis, fit, siteText, founders);
+    // Startups that fit but have no founder address yet: ask Hunter (capped per run to protect the monthly credits).
+    let contactNow = contact;
+    let foundersNow = founders;
+    if (hunterEnabled() && !DRY_RUN && (!contact || contact.type !== "founder") && stats.hunter < Number(process.env.HUNTER_MAX_PER_RUN || 5)) {
+      stats.hunter++;
+      try {
+        const h = await hunterContact({ domain: domain || s.domain, founders });
+        if (h) { contactNow = { email: h.email, type: h.type, source: h.source }; foundersNow = h.founders; }
+        await supabase.from("startups").update({ contact_email: contactNow?.email ?? null, contact_type: contactNow?.type ?? null, contact_source: h ? h.source : "hunter.io: nothing found", founders: foundersNow }).eq("id", id);
+      } catch (e) { console.warn(`  hunter lookup failed for ${s.name}: ${e.message}`); }
+    }
+    const mail = await draftEmail(s, thesis, fit, siteText, foundersNow);
     if (DRY_RUN) {
       console.log(`\n--- DRY RUN draft for ${s.name} (score ${fit.score}) ---\nTo: ${email ?? "(none)"}\nSubject: ${mail.subject}\n\n${mail.body}\n`);
       await supabase.from("startups").delete().eq("id", id); // leave no trace so a real run can process it
       return;
     }
-    const draftId = await createDraft({ to: email, subject: mail.subject, body: mail.body });
+    const toEmail = contactNow?.email ?? email;
+    const draftId = await createDraft({ to: toEmail, subject: mail.subject, body: mail.body });
     await supabase.from("outreach").insert({
       startup_id: id, fit_score: fit.score, rationale: fit.rationale, thesis_version: thesis.version,
-      to_email: email, subject: mail.subject, body: mail.body, gmail_draft_id: draftId,
+      to_email: toEmail, subject: mail.subject, body: mail.body, gmail_draft_id: draftId,
     });
     await supabase.from("startups").update({ status: "drafted" }).eq("id", id);
     stats.drafted++;
