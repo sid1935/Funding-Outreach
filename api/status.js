@@ -45,7 +45,8 @@ export default async function handler(req, res) {
     } else {
       return res.status(400).json({ error: "unknown view" });
     }
-    res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=300");
+    // Decisions must show immediately after a click, so the dashboard data is never served stale.
+    res.setHeader("Cache-Control", "no-store");
     res.status(200).json(out);
   } catch {
     res.status(500).json({ error: "status unavailable" });
