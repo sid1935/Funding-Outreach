@@ -1,6 +1,9 @@
+import { waitUntil } from "@vercel/functions";
 import { runPipeline } from "../src/run.js";
 
-// Vercel serverless function. Vercel Cron calls it with "Authorization: Bearer $CRON_SECRET".
+// Triggered by Vercel Cron (daily) and by an external hourly timer. Both send "Authorization: Bearer $CRON_SECRET".
+// Replies immediately (202) and keeps working in the background, so a timer with a short HTTP timeout
+// (cron-job.org waits only ~30s) does not mark the job failed or cut it off.
 export const config = { maxDuration: 300 };
 
 export default async function handler(req, res) {
@@ -8,6 +11,6 @@ export default async function handler(req, res) {
   if (!secret || req.headers.authorization !== `Bearer ${secret}`) {
     return res.status(401).json({ error: "unauthorized" });
   }
-  const { stats, error } = await runPipeline({ deadlineMs: 240_000 }); // leave headroom under maxDuration
-  return res.status(error ? 500 : 200).json({ ok: !error, stats, error });
+  waitUntil(runPipeline({ deadlineMs: 240_000 }).catch((e) => console.error("run failed:", e.message))); // headroom under maxDuration
+  return res.status(202).json({ ok: true, started: true });
 }
