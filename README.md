@@ -15,8 +15,8 @@ news feeds ─► extract ─► dedupe ─► research ─► score ─► cont
 ```
 
 1. **Ingest.** Pulls ~50 sources every run: RSS feeds (TechCrunch, Crunchbase News, Inc42, YourStory, TNW, GeekWire, …) plus Google News and Bing News searches ("raises pre-seed", "closes seed round", regional variants for India, Europe, Africa, SE Asia, …). Only items from the last 26 hours are kept.
-2. **Extract.** Gemini turns each article into structured data (company, round, amount, description, investors, founders named) and discards anything that is not a seed or pre-seed announcement.
-3. **Dedupe.** A startup is claimed in the database before any work is done. Unique constraints on the normalised company name and on the domain make this atomic, so a startup that was already handled is never processed or contacted twice, even if two runs overlap. (A startup left half-processed by a killed run is retried after 15 minutes.)
+2. **Extract.** Gemini turns each article into structured data (company, round, amount, description, one primary industry, investors, founders named) and discards anything that is not a seed or pre-seed announcement.
+3. **Dedupe.** A startup is claimed in the database before any work is done. Unique constraints on the normalised company name and on the domain make this atomic (names are normalised by dropping trailing filler words, so "Loops", "Loops AI" and "Loops Smart AI" are one company), so a startup that was already handled is never processed or contacted twice, even if two runs overlap. (A startup left half-processed by a killed run is retried after 15 minutes.)
 4. **Research.** Finds the company's website (Gemini with Google Search if the article does not name it), checks the page really mentions the company, and reads the homepage text and the founders named on its own pages.
 5. **Score.** Gemini scores the startup on every criterion of the **rubric**; the final score is the weighted average, computed in code. Scores near the cutoff are scored three times and the median is used, to damp run-to-run noise.
 6. **Contact SOP** (only for startups that pass the score). See [Contact SOP](#contact-sop).
@@ -119,7 +119,7 @@ The dashboard is public, so sending is restricted by design:
 ### Database (`supabase/schema.sql`)
 
 - `thesis` — the editable configuration above.
-- `startups` — every startup seen; `status` is `processing | drafted | rejected | error`; unique on `name_key` and `domain`; stores `fit_score`, `fit_rationale`, `fit_breakdown`, `founders`, and the contact (`contact_email`, `contact_type`, `contact_source`).
+- `startups` — every startup seen; `status` is `processing | drafted | rejected | error`; unique on `name_key` and `domain`; stores `industry`, `fit_score`, `fit_rationale`, `fit_breakdown`, `founders`, and the contact (`contact_email`, `contact_type`, `contact_source`).
 - `outreach` — one draft per startup (`startup_id` unique): subject, body, score, thesis version, recipient, Gmail draft id, plus the approval state (`status` is `pending | sent | rejected`, `decided_at`, `sent_to`, `gmail_message_id`).
 - `seen_articles` — URLs already looked at, so the LLM is not paid for twice.
 - `runs` — a log row per run with stats (including contacts per SOP step) and errors.
@@ -182,7 +182,7 @@ npm start          # real run: creates Gmail drafts and database rows
 npm run test-gmail # creates one harmless test draft to check the Gmail connection
 ```
 
-One-off maintenance scripts live in `src/` (`backfill-scores.js`, `backfill-hunter.js`, `backfill-sop.js`, `reformat-drafts.js`). They only update stored data and pending Gmail drafts; none of them sends email.
+One-off maintenance scripts live in `src/` (`backfill-scores.js`, `backfill-hunter.js`, `backfill-sop.js`, `backfill-industry.js`, `reformat-drafts.js`, `merge-duplicates.js`). They only update stored data and pending Gmail drafts; none of them sends email.
 
 ### 5. Deploy
 
@@ -198,8 +198,8 @@ Light, airy design (pale canvas with soft gold / lilac washes, light grotesk typ
 | Page | Shows |
 |---|---|
 | `/` | Clickable stats, how it works, thesis summary |
-| `/startups` | A tile per evaluated startup (logo, name, score), best first; filter by status. Each tile opens its detail page |
-| `/startup?id=…` | Everything about one startup: round, website, founders, score breakdown and reason, and its email 
+| `/startups` | A tile per evaluated startup (logo, name, score), best first. Filter by status (chips) and by **industry** (dropdown, with counts). Each tile opens its detail page |
+| `/startup?id=…` | Everything about one startup: industry, round, website, founders, score breakdown and reason, and its email 
 | `/drafts` | Fits: subject, the full email, founders, score breakdown, **Approve / Reject** buttons, and filters (Awaiting approval, Sent, Rejected, All) |
 | `/rejected` | Non-fits, each with a score and the reason |
 | `/sources` | Every news source, with status, items returned last run, totals and uptime |
@@ -215,6 +215,8 @@ Light, airy design (pale canvas with soft gold / lilac washes, light grotesk typ
 - **Open endpoints.** Thesis editing and Run now need no password. Both are bounded (validation, cooldown) and neither can send email, but anyone with the link can use them.
 - **Coverage.** Sources are public RSS and news search. Paywalled or script-blocking sites (some are skipped automatically) are not covered.
 - **Extraction accuracy.** Amounts and rounds are read from short article snippets and can occasionally be wrong.
+- **Industry labels are a model's judgement.** Each startup gets one label from a fixed list of 15 (AI, SaaS, Developer tools, Fintech, Healthtech, …) read from its description, so a few can be debatable. The list lives in `src/industries.js`.
+- **Name matching can over-merge.** Trailing filler words (AI, AG, Labs, Capital, …) are ignored when matching names, which catches variants of one company but could treat two genuinely different companies with near-identical names as one.
 - **Existing scores are final.** Changing the thesis or rubric affects new startups only; previously scored startups are not re-ranked.
 
 ## Components map
@@ -227,7 +229,7 @@ A one-page map of the system in the same Trigger → Input → Context → Proce
 api/          Vercel functions: run, trigger, status, thesis, decision
 public/       Dashboard (static HTML pages, app.js, style.css)
 src/          Pipeline: sources, extract, score, draft, contacts, personal-site, hunter,
-              waterfall (contact SOP), gmail, run, thesis-config, plus maintenance scripts
+              waterfall (contact SOP), industries, gmail, run, thesis-config, plus maintenance scripts
 supabase/     schema.sql
 .github/      Workflow (backup schedule)
 docs/         Components map (PDF and PNG)
